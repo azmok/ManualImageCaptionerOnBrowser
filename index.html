@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+   <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>Manual Image Captioner - AI Training Dataset Tool</title>
+      <link rel="stylesheet" href="style.css" />
+   </head>
+   <body>
+      <div class="btn" id="btn_sidePanelToggle">〓</div>
+      <div class="app-container">
+         
+         <div class="main-content">
+            <header class="header">
+               <h1>🎨 Manual Captioning Webapp</h1>
+            </header>
+            <section class="upload-section">
+               <label for="fileInput" class="upload-label">📸 Upload Images + Caption Files</label>
+               <input id="fileInput" type="file" multiple accept="image/*, .txt" />
+               <div id="uploadArea" class="upload-area">
+                  <div style="font-size: 3em; margin-bottom: 20px">📁</div>
+                  <h3>Drag & Drop Images or Caption Files Here</h3>
+                  <p>Support for images (JPG, PNG, WebP) + text files (.txt)</p>
+                  <p style="margin-top: 10px; font-size: 0.9em; color: #718096">
+                     💡 Upload matching files: image1.jpg + image1.txt for auto-caption loading
+                  </p>
+               </div>
+            </section>
+            <section class="progress-section">
+               <div id="imageCount">0 images</div>
+               <div class="progress-bar">
+                  <div id="progressFill"></div>
+               </div>
+               <div id="captionedCount">0 captioned</div>
+            </section>
+            <main id="gallery"></main>
+            <div id="emptyState" class="empty-state">
+               <h3>Ready to create your dataset! 🚀</h3>
+               <p>Upload images and optional .txt caption files to start captioning</p>
+            </div>
+         </div>
+         
+         <aside id="sidePanel">
+            <h3>📝 Tags & Sentences</h3>
+            <ul id="captionList"></ul>
+            <div class="controls-panel">
+               <button id="clearAllBtn" class="btn btn-primary">Clear All</button>
+               <button id="downloadDatasetBtn" class="btn btn-success">Download Dataset</button>
+               <button id="autoSaveBtn" class="btn btn-secondary">Save Progress</button>
+            </div>
+         </aside>
+      </div>
+      <div id="notification" class="notification"></div>
+      <div class="controls-panel">
+         <button class="btn btn-primary" id="downloadDatasetBtn">📦Download Dataset</button>
+         <button class="btn btn-secondary" id="saveProgressBtn">💾Save Progress</button>
+         <button class="btn btn-danger" id="clearAllBtn">🗑️Clear All</button>
+      </div>
+      <button class="btn btn-primary" id="loadProgressBtn">♻️Restore Last Session</button>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+      <script src="main.js"></script>
+   </body>
+</html>
