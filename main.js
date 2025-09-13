@@ -68,10 +68,10 @@ class ImageCaptioner {
         }
 
         captionFiles.forEach(file => {
-            const reader = new FileReader();
             const promise = new Promise(resolve => {
+                const reader = new FileReader();
                 reader.onload = (e) => {
-                    const baseName = file.name.replace(/\.txt$/, '');
+                    const baseName = file.name.replace(/\.txt$/i, '').trim().toLowerCase();
                     captionsMap.set(baseName, e.target.result);
                     resolve();
                 };
@@ -79,21 +79,22 @@ class ImageCaptioner {
             });
             captionPromises.push(promise);
         });
-
+s
         await Promise.all(captionPromises);
 
         const processedImages = await Promise.all(imageFiles.map(async file => {
-            const baseName = file.name.replace(/\.[^.]+$/, '');
-            const compressedDataUrl = await this.resizeAndCompressImage(file, 0.5); // 50% quality
+            const baseName = file.name.replace(/\.[^.]+$/, '').trim().toLowerCase();
+            const compressedDataUrl = await this.resizeAndCompressImage(file, 0.5);
             return {
                 id: Date.now() + Math.random(),
                 name: file.name,
-                size: compressedDataUrl.length, // use new size
-                file: compressedDataUrl, // store data URL instead of file object
+                size: compressedDataUrl.length,
+                file: compressedDataUrl,
                 dataUrl: compressedDataUrl,
                 caption: captionsMap.get(baseName) || ''
             };
         }));
+
         
         this.images = [...this.images, ...processedImages];
         this.saveProgress(); // Auto-save after upload
