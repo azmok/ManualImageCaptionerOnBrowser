@@ -68,10 +68,10 @@ class ImageCaptioner {
         }
 
         captionFiles.forEach(file => {
+            const reader = new FileReader();
             const promise = new Promise(resolve => {
-                const reader = new FileReader();
                 reader.onload = (e) => {
-                    const baseName = file.name.replace(/\.txt$/i, '').trim().toLowerCase();
+                    const baseName = file.name.replace(/\.txt$/, '');
                     captionsMap.set(baseName, e.target.result);
                     resolve();
                 };
@@ -79,22 +79,21 @@ class ImageCaptioner {
             });
             captionPromises.push(promise);
         });
-s
+
         await Promise.all(captionPromises);
 
         const processedImages = await Promise.all(imageFiles.map(async file => {
-            const baseName = file.name.replace(/\.[^.]+$/, '').trim().toLowerCase();
-            const compressedDataUrl = await this.resizeAndCompressImage(file, 0.5);
+            const baseName = file.name.replace(/\.[^.]+$/, '');
+            const compressedDataUrl = await this.resizeAndCompressImage(file, 0.5); // 50% quality
             return {
                 id: Date.now() + Math.random(),
                 name: file.name,
-                size: compressedDataUrl.length,
-                file: compressedDataUrl,
+                size: compressedDataUrl.length, // use new size
+                file: compressedDataUrl, // store data URL instead of file object
                 dataUrl: compressedDataUrl,
                 caption: captionsMap.get(baseName) || ''
             };
         }));
-
         
         this.images = [...this.images, ...processedImages];
         this.saveProgress(); // Auto-save after upload
@@ -123,15 +122,41 @@ s
             reader.readAsDataURL(file);
         });
     }
+    updateImageTags(image) {
+        const card = document.querySelector(`[data-image-id="${image.id}"]`);
+        if (!card) return;
+
+        const imageTagsContainer = card.querySelector('.image-tags-container');
+        if (!imageTagsContainer) return;
+
+        // Clear old buttons
+        imageTagsContainer.innerHTML = '';
+
+        // Recalculate tag counts
+        this.updateAllTagsWithCounts();
+
+        const maxCount = Math.max(1, ...Array.from(this.allTagsWithCounts.values()));
+
+        // Add updated buttons for this image
+        this.createTagButtonsForImage(image, maxCount).forEach(button => {
+            imageTagsContainer.appendChild(button);
+        });
+}
+
 
     updateCaption(imageId, caption) {
         const image = this.images.find(img => img.id === imageId);
         if (image) {
             image.caption = caption;
-            this.saveProgress(); // Auto-save on every caption change
-            this.updateUI();
+
+            this.saveProgress(); // save to localStorage
+
+            // Update tags for this image without re-rendering gallery
+            this.updateImageTags(image);
+            this.renderSidePanel(); // optional: update side panel counts
         }
     }
+
 
     deleteImage(imageId) {
         this.images = this.images.filter(img => img.id !== imageId);
@@ -293,6 +318,8 @@ s
             textarea.addEventListener('input', (e) => {
                 this.updateCaption(image.id, e.target.value);
                 card.querySelector('.char-count span').textContent = e.target.value.length;
+                this.updateAllTagsWithCounts(); // Optional: update tag counts
+                this.renderSidePanel(); // Optional: update side panel
             });
 
             card.querySelector('.delete-btn').addEventListener('click', () => {
