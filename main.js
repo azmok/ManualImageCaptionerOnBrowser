@@ -68,10 +68,10 @@ class ImageCaptioner {
         }
 
         captionFiles.forEach(file => {
+            const reader = new FileReader();
             const promise = new Promise(resolve => {
-                const reader = new FileReader();
                 reader.onload = (e) => {
-                    const baseName = file.name.replace(/\.txt$/i, '').trim().toLowerCase();
+                    const baseName = file.name.replace(/\.txt$/, '');
                     captionsMap.set(baseName, e.target.result);
                     resolve();
                 };
@@ -79,22 +79,21 @@ class ImageCaptioner {
             });
             captionPromises.push(promise);
         });
-s
+
         await Promise.all(captionPromises);
 
         const processedImages = await Promise.all(imageFiles.map(async file => {
-            const baseName = file.name.replace(/\.[^.]+$/, '').trim().toLowerCase();
-            const compressedDataUrl = await this.resizeAndCompressImage(file, 0.5);
+            const baseName = file.name.replace(/\.[^.]+$/, '');
+            const compressedDataUrl = await this.resizeAndCompressImage(file, 0.5); // 50% quality
             return {
                 id: Date.now() + Math.random(),
                 name: file.name,
-                size: compressedDataUrl.length,
-                file: compressedDataUrl,
+                size: compressedDataUrl.length, // use new size
+                file: compressedDataUrl, // store data URL instead of file object
                 dataUrl: compressedDataUrl,
                 caption: captionsMap.get(baseName) || ''
             };
         }));
-
         
         this.images = [...this.images, ...processedImages];
         this.saveProgress(); // Auto-save after upload
@@ -123,15 +122,41 @@ s
             reader.readAsDataURL(file);
         });
     }
+    updateImageTags(image) {
+        const card = document.querySelector(`[data-image-id="${image.id}"]`);
+        if (!card) return;
+
+        const imageTagsContainer = card.querySelector('.image-tags-container');
+        if (!imageTagsContainer) return;
+
+        // Clear old buttons
+        imageTagsContainer.innerHTML = '';
+
+        // Recalculate tag counts
+        this.updateAllTagsWithCounts();
+
+        const maxCount = Math.max(1, ...Array.from(this.allTagsWithCounts.values()));
+
+        // Add updated buttons for this image
+        this.createTagButtonsForImage(image, maxCount).forEach(button => {
+            imageTagsContainer.appendChild(button);
+        });
+}
+
 
     updateCaption(imageId, caption) {
         const image = this.images.find(img => img.id === imageId);
         if (image) {
             image.caption = caption;
-            this.saveProgress(); // Auto-save on every caption change
-            this.updateUI();
+
+            this.saveProgress(); // save to localStorage
+
+            // Update tags for this image without re-rendering gallery
+            this.updateImageTags(image);
+            this.renderSidePanel(); // optional: update side panel counts
         }
     }
+
 
     deleteImage(imageId) {
         this.images = this.images.filter(img => img.id !== imageId);
@@ -293,6 +318,8 @@ s
             textarea.addEventListener('input', (e) => {
                 this.updateCaption(image.id, e.target.value);
                 card.querySelector('.char-count span').textContent = e.target.value.length;
+                this.updateAllTagsWithCounts(); // Optional: update tag counts
+                this.renderSidePanel(); // Optional: update side panel
             });
 
             card.querySelector('.delete-btn').addEventListener('click', () => {
@@ -424,6 +451,7 @@ s
         this.addBulkPanel();
         this.addAppendPrependPanel();
         this.addDeletePanel();
+        this.addReplacePanel(); // Add the new replace panel
     }
     
     deleteTagFromAllCaptions(tagToDelete) {
@@ -527,26 +555,25 @@ s
     }
 
     findAndModifyCaptions(operation) {
-        const targetTextInput = operation === 'delete' 
-            ? document.getElementById('targetTextInputDelete') 
-            : document.getElementById('targetTextInput');
-        
-        const newTagInput = document.getElementById('newTagInput');
-        const regexRadio = document.getElementById('regexRadio');
+        const targetTextInput = document.getElementById(`targetTextInput${operation === 'delete' ? 'Delete' : (operation === 'replace' ? 'Replace' : '')}`);
+        const newTagInput = document.getElementById(`newTagInput${operation === 'replace' ? 'Replace' : ''}`);
+        const regexRadio = document.getElementById(`regexRadio${operation === 'delete' ? 'Delete' : (operation === 'replace' ? 'Replace' : '')}`);
         const prependRadio = document.getElementById('prependRadio');
         
         const targetText = targetTextInput.value;
         const newTag = newTagInput ? newTagInput.value.trim() : '';
-        const useRegex = operation === 'delete' 
-            ? document.getElementById('regexRadioDelete').checked
-            : regexRadio.checked;
+        const useRegex = regexRadio.checked;
 
-        if (operation !== 'delete' && (!newTag || !targetText)) {
+        if (operation !== 'delete' && operation !== 'replace' && (!newTag || !targetText)) {
             this.showNotification('Both "New Tag" and "Target Text" fields are required.', 'error');
             return;
         }
         if (operation === 'delete' && !targetText) {
             this.showNotification('The "Target Text" field is required to delete.', 'error');
+            return;
+        }
+        if (operation === 'replace' && (!targetText || newTag === undefined)) {
+            this.showNotification('Both "Target Text" and "Replacement Text" fields are required.', 'error');
             return;
         }
 
@@ -574,7 +601,7 @@ s
             return;
         }
 
-        const actionText = operation === 'delete' ? 'delete from' : 'modify';
+        const actionText = operation === 'delete' ? 'delete from' : (operation === 'replace' ? 'replace text in' : 'modify');
         if (!confirm(`This will ${actionText} the captions of ${imagesToModify.length} images. Continue?`)) {
             this.showNotification('Caption modification cancelled.', 'info');
             return;
@@ -594,7 +621,13 @@ s
 
                 newCaption = newCaption.replace(/,\s*,/g, ',').replace(/^,\s*|\s*,$/g, '').trim();
 
-            } else {
+            } else if (operation === 'replace') {
+                if (useRegex) {
+                    newCaption = newCaption.replace(regex, newTag);
+                } else {
+                    newCaption = newCaption.split(targetText).join(newTag);
+                }
+            } else { // 'add' operation (prepend/append)
                 const prepend = prependRadio.checked;
                 let targetIndex = -1;
                 let foundText = '';
@@ -778,6 +811,36 @@ s
             }
         } else if (deletePanel) {
             deletePanel.remove();
+        }
+    }
+    
+    addReplacePanel() {
+        const sidePanel = document.getElementById('sidePanel');
+        let replacePanel = sidePanel.querySelector('.replace-panel');
+        if (this.images.length > 0) {
+            if (!replacePanel) {
+                replacePanel = document.createElement('div');
+                replacePanel.className = 'replace-panel';
+                replacePanel.innerHTML = `
+                    <h4>Replace Text</h4>
+                    <div class="radio-group">
+                        <label>
+                            <input type="radio" name="targetTypeReplace" id="textRadioReplace" value="text" checked> Text
+                        </label>
+                        <label>
+                            <input type="radio" name="targetTypeReplace" id="regexRadioReplace" value="regex"> Regex
+                        </label>
+                    </div>
+                    <input type="text" id="targetTextInputReplace" placeholder="Target text/pattern to replace">
+                    <input type="text" id="newTagInputReplace" placeholder="Replacement text">
+                    <button class="btn btn-warning" id="replaceTargetBtn">Replace</button>
+                `;
+                const deletePanel = sidePanel.querySelector('.delete-panel');
+                sidePanel.insertBefore(replacePanel, deletePanel ? deletePanel.nextElementSibling : sidePanel.querySelector('.controls-panel'));
+                document.getElementById('replaceTargetBtn').addEventListener('click', () => this.findAndModifyCaptions('replace'));
+            }
+        } else if (replacePanel) {
+            replacePanel.remove();
         }
     }
 }
