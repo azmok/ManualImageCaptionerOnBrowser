@@ -35,6 +35,7 @@ class ImageCaptioner {
             this.handleFileUpload(e.dataTransfer.files);
         });
 
+        // Event listeners for the buttons in the side panel
         document.getElementById('clearAllBtn').addEventListener('click', () => this.clearAll());
         document.getElementById('downloadDatasetBtn').addEventListener('click', () => this.downloadDataset());
         
@@ -53,6 +54,34 @@ class ImageCaptioner {
             }
             this.loadProgress();
         });
+
+        // Event listeners for the buttons in the main content area
+        const clearAllBtnMain = document.getElementById('clearAllBtn_main');
+        if (clearAllBtnMain) {
+            clearAllBtnMain.addEventListener('click', () => this.clearAll());
+        }
+        const downloadDatasetBtnMain = document.getElementById('downloadDatasetBtn_main');
+        if (downloadDatasetBtnMain) {
+            downloadDatasetBtnMain.addEventListener('click', () => this.downloadDataset());
+        }
+        const saveProgressBtnMain = document.getElementById('saveProgressBtn_main');
+        if (saveProgressBtnMain) {
+            saveProgressBtnMain.addEventListener('click', () => {
+                this.saveProgress();
+                this.showNotification('Progress saved automatically!', 'success');
+            });
+        }
+        const loadProgressBtnMain = document.getElementById('loadProgressBtn_main');
+        if (loadProgressBtnMain) {
+            loadProgressBtnMain.addEventListener('click', () => {
+                if (this.images.length > 0) {
+                    if (!confirm('Loading will overwrite your current session. Continue?')) {
+                        return;
+                    }
+                }
+                this.loadProgress();
+            });
+        }
     }
 
     async handleFileUpload(files) {
@@ -82,46 +111,31 @@ class ImageCaptioner {
 
         await Promise.all(captionPromises);
 
-        const processedImages = await Promise.all(imageFiles.map(async file => {
+        // Process images and store the file object
+        const processedImages = [];
+        for (const file of imageFiles) {
             const baseName = file.name.replace(/\.[^.]+$/, '');
-            const compressedDataUrl = await this.resizeAndCompressImage(file, 0.5); // 50% quality
-            return {
+            const dataUrl = await new Promise(resolve => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result);
+                reader.readAsDataURL(file);
+            });
+            processedImages.push({
                 id: Date.now() + Math.random(),
                 name: file.name,
-                size: compressedDataUrl.length, // use new size
-                file: compressedDataUrl, // store data URL instead of file object
-                dataUrl: compressedDataUrl,
+                size: file.size,
+                file: file, // Store the original file object
+                dataUrl: dataUrl,
                 caption: captionsMap.get(baseName) || ''
-            };
-        }));
+            });
+        }
         
         this.images = [...this.images, ...processedImages];
         this.saveProgress(); // Auto-save after upload
         this.updateUI();
-        this.showNotification(`${imageFiles.length} images uploaded and compressed!`, 'success');
+        this.showNotification(`${imageFiles.length} images uploaded and ready!`, 'success');
     }
 
-    async resizeAndCompressImage(file, quality) {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const img = new Image();
-                img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    const ctx = canvas.getContext('2d');
-                    canvas.width = img.width;
-                    canvas.height = img.height;
-                    ctx.drawImage(img, 0, 0);
-                    const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
-                    resolve(compressedDataUrl);
-                };
-                img.onerror = reject;
-                img.src = event.target.result;
-            };
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-        });
-    }
     updateImageTags(image) {
         const card = document.querySelector(`[data-image-id="${image.id}"]`);
         if (!card) return;
@@ -141,7 +155,7 @@ class ImageCaptioner {
         this.createTagButtonsForImage(image, maxCount).forEach(button => {
             imageTagsContainer.appendChild(button);
         });
-}
+    }
 
 
     updateCaption(imageId, caption) {
@@ -184,9 +198,8 @@ class ImageCaptioner {
         const zip = new JSZip();
         for (const image of this.images) {
             try {
-                // Convert data URL to Blob for saving to zip
-                const blob = await fetch(image.dataUrl).then(res => res.blob());
-                zip.file(image.name, blob);
+                // Use the original file object to add to the zip
+                zip.file(image.name, image.file);
                 
                 if (image.caption.trim()) {
                     const baseName = image.name.replace(/\.[^.]+$/, '');
@@ -221,7 +234,8 @@ class ImageCaptioner {
             name: img.name,
             size: img.size,
             caption: img.caption,
-            dataUrl: img.dataUrl // Save the compressed data URL
+            // The file object is not serializable, so we don't save it.
+            dataUrl: img.dataUrl
         }));
         localStorage.setItem('captioningProgress', JSON.stringify(progressData));
     }
@@ -233,11 +247,12 @@ class ImageCaptioner {
                 const loadedImages = JSON.parse(savedData);
                 this.images = loadedImages.map(img => ({
                     ...img,
-                    // The 'file' property is not needed for display, dataUrl is sufficient
-                    file: null
+                    file: null // The file object cannot be saved and will be null here
                 }));
                 this.updateUI();
                 this.showNotification('Session loaded from last backup!', 'info');
+                // IMPORTANT: Warn the user that they cannot download a dataset from a loaded session
+                this.showNotification('Note: You cannot download the dataset from a loaded session. Please re-upload your files if you need to download them.', 'warning');
                 return true;
             } catch (error) {
                 console.error("Failed to load progress from localStorage:", error);
@@ -432,6 +447,11 @@ class ImageCaptioner {
                 this.deleteTagFromAllCaptions(item.tag);
             });
 
+            // Prevent the parent LI's click event from firing when clicking on the input
+            editInput.addEventListener('click', (e) => {
+                e.stopPropagation();
+            });
+
             editInput.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') {
                     e.preventDefault();
@@ -445,13 +465,19 @@ class ImageCaptioner {
                 }
             });
 
+            // Add a blur event listener to exit edit mode when the input loses focus
+            editInput.addEventListener('blur', () => {
+                tagTextSpan.style.display = 'block';
+                tagActionsDiv.style.display = 'flex';
+                editInput.style.display = 'none';
+            });
+
             list.appendChild(li);
         });
 
         this.addBulkPanel();
         this.addAppendPrependPanel();
         this.addDeletePanel();
-        this.addReplacePanel(); // Add the new replace panel
     }
     
     deleteTagFromAllCaptions(tagToDelete) {
@@ -498,7 +524,7 @@ class ImageCaptioner {
             this.saveProgress();
             this.showNotification(`Modified "${oldTag}" to "${newTag}" in ${modifiedCount} caption${modifiedCount === 1 ? '' : 's'}.`, 'success');
         } else {
-            this.showNotification(`No captions found with the tag "${oldTag}".`, 'info');
+            this.showNotification('No captions found with the tag "${oldTag}".', 'info');
         }
     }
 
@@ -555,25 +581,26 @@ class ImageCaptioner {
     }
 
     findAndModifyCaptions(operation) {
-        const targetTextInput = document.getElementById(`targetTextInput${operation === 'delete' ? 'Delete' : (operation === 'replace' ? 'Replace' : '')}`);
-        const newTagInput = document.getElementById(`newTagInput${operation === 'replace' ? 'Replace' : ''}`);
-        const regexRadio = document.getElementById(`regexRadio${operation === 'delete' ? 'Delete' : (operation === 'replace' ? 'Replace' : '')}`);
+        const targetTextInput = operation === 'delete' 
+            ? document.getElementById('targetTextInputDelete') 
+            : document.getElementById('targetTextInput');
+        
+        const newTagInput = document.getElementById('newTagInput');
+        const regexRadio = document.getElementById('regexRadio');
         const prependRadio = document.getElementById('prependRadio');
         
         const targetText = targetTextInput.value;
         const newTag = newTagInput ? newTagInput.value.trim() : '';
-        const useRegex = regexRadio.checked;
+        const useRegex = operation === 'delete' 
+            ? document.getElementById('regexRadioDelete').checked
+            : regexRadio.checked;
 
-        if (operation !== 'delete' && operation !== 'replace' && (!newTag || !targetText)) {
+        if (operation !== 'delete' && (!newTag || !targetText)) {
             this.showNotification('Both "New Tag" and "Target Text" fields are required.', 'error');
             return;
         }
         if (operation === 'delete' && !targetText) {
             this.showNotification('The "Target Text" field is required to delete.', 'error');
-            return;
-        }
-        if (operation === 'replace' && (!targetText || newTag === undefined)) {
-            this.showNotification('Both "Target Text" and "Replacement Text" fields are required.', 'error');
             return;
         }
 
@@ -601,7 +628,7 @@ class ImageCaptioner {
             return;
         }
 
-        const actionText = operation === 'delete' ? 'delete from' : (operation === 'replace' ? 'replace text in' : 'modify');
+        const actionText = operation === 'delete' ? 'delete from' : 'modify';
         if (!confirm(`This will ${actionText} the captions of ${imagesToModify.length} images. Continue?`)) {
             this.showNotification('Caption modification cancelled.', 'info');
             return;
@@ -621,13 +648,7 @@ class ImageCaptioner {
 
                 newCaption = newCaption.replace(/,\s*,/g, ',').replace(/^,\s*|\s*,$/g, '').trim();
 
-            } else if (operation === 'replace') {
-                if (useRegex) {
-                    newCaption = newCaption.replace(regex, newTag);
-                } else {
-                    newCaption = newCaption.split(targetText).join(newTag);
-                }
-            } else { // 'add' operation (prepend/append)
+            } else {
                 const prepend = prependRadio.checked;
                 let targetIndex = -1;
                 let foundText = '';
@@ -757,27 +778,24 @@ class ImageCaptioner {
                 appendPrependPanel.className = 'append-prepend-panel';
                 appendPrependPanel.innerHTML = `
                     <h4>Append/Prepend Text</h4>
-                    <div class=radio-group-wrapper>
-                        <div class="radio-group">
-                            <label>
-                                <input type="radio" name="targetType" id="textRadio" value="text" checked> Text
-                            </label>
-                            <label>
-                                <input type="radio" name="targetType" id="regexRadio" value="regex"> Regex
-                            </label>
-                        </div>
-                        <div class="radio-group">
-                            <label>
-                                <input type="radio" name="position" id="prependRadio" value="prepend" checked> Prepend
-                            </label>
-                            <label>
-                                <input type="radio" name="position" id="appendRadio" value="append"> Append
-                            </label>
-                        </div>
+                    <div class="radio-group">
+                        <label>
+                            <input type="radio" name="targetType" id="textRadio" value="text" checked> Text
+                        </label>
+                        <label>
+                            <input type="radio" name="targetType" id="regexRadio" value="regex"> Regex
+                        </label>
                     </div>
                     <input type="text" id="targetTextInput" placeholder="Target text/pattern">
                     <input type="text" id="newTagInput" placeholder="New tag/sentence">
-                    
+                    <div class="radio-group">
+                        <label>
+                            <input type="radio" name="position" id="prependRadio" value="prepend" checked> Prepend
+                        </label>
+                        <label>
+                            <input type="radio" name="position" id="appendRadio" value="append"> Append
+                        </label>
+                    </div>
                     <button class="btn btn-secondary" id="addToTargetBtn">Add to Target</button>
                 `;
                 const deletePanel = sidePanel.querySelector('.delete-panel');
@@ -814,36 +832,6 @@ class ImageCaptioner {
             }
         } else if (deletePanel) {
             deletePanel.remove();
-        }
-    }
-    
-    addReplacePanel() {
-        const sidePanel = document.getElementById('sidePanel');
-        let replacePanel = sidePanel.querySelector('.replace-panel');
-        if (this.images.length > 0) {
-            if (!replacePanel) {
-                replacePanel = document.createElement('div');
-                replacePanel.className = 'replace-panel';
-                replacePanel.innerHTML = `
-                    <h4>Replace Text</h4>
-                    <div class="radio-group">
-                        <label>
-                            <input type="radio" name="targetTypeReplace" id="textRadioReplace" value="text" checked> Text
-                        </label>
-                        <label>
-                            <input type="radio" name="targetTypeReplace" id="regexRadioReplace" value="regex"> Regex
-                        </label>
-                    </div>
-                    <input type="text" id="targetTextInputReplace" placeholder="Target text/pattern to replace">
-                    <input type="text" id="newTagInputReplace" placeholder="Replacement text">
-                    <button class="btn btn-warning" id="replaceTargetBtn">Replace</button>
-                `;
-                const deletePanel = sidePanel.querySelector('.delete-panel');
-                sidePanel.insertBefore(replacePanel, deletePanel ? deletePanel.nextElementSibling : sidePanel.querySelector('.controls-panel'));
-                document.getElementById('replaceTargetBtn').addEventListener('click', () => this.findAndModifyCaptions('replace'));
-            }
-        } else if (replacePanel) {
-            replacePanel.remove();
         }
     }
 }
