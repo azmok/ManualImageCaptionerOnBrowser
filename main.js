@@ -757,24 +757,27 @@ class ImageCaptioner {
                 appendPrependPanel.className = 'append-prepend-panel';
                 appendPrependPanel.innerHTML = `
                     <h4>Append/Prepend Text</h4>
-                    <div class="radio-group">
-                        <label>
-                            <input type="radio" name="targetType" id="textRadio" value="text" checked> Text
-                        </label>
-                        <label>
-                            <input type="radio" name="targetType" id="regexRadio" value="regex"> Regex
-                        </label>
+                    <div class=radio-group-wrapper>
+                        <div class="radio-group">
+                            <label>
+                                <input type="radio" name="targetType" id="textRadio" value="text" checked> Text
+                            </label>
+                            <label>
+                                <input type="radio" name="targetType" id="regexRadio" value="regex"> Regex
+                            </label>
+                        </div>
+                        <div class="radio-group">
+                            <label>
+                                <input type="radio" name="position" id="prependRadio" value="prepend" checked> Prepend
+                            </label>
+                            <label>
+                                <input type="radio" name="position" id="appendRadio" value="append"> Append
+                            </label>
+                        </div>
                     </div>
                     <input type="text" id="targetTextInput" placeholder="Target text/pattern">
                     <input type="text" id="newTagInput" placeholder="New tag/sentence">
-                    <div class="radio-group">
-                        <label>
-                            <input type="radio" name="position" id="prependRadio" value="prepend" checked> Prepend
-                        </label>
-                        <label>
-                            <input type="radio" name="position" id="appendRadio" value="append"> Append
-                        </label>
-                    </div>
+                    
                     <button class="btn btn-secondary" id="addToTargetBtn">Add to Target</button>
                 `;
                 const deletePanel = sidePanel.querySelector('.delete-panel');
