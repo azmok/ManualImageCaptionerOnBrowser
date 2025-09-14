@@ -441,7 +441,9 @@ body {
 }
 
 #clearAllBtn,
-#downloadDatasetBtn {
+#clearAllBtn-2,
+#downloadDatasetBtn,
+#downloadDatasetBtn-2 {
   margin: 0.75rem auto;
 }
 

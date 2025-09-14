@@ -37,13 +37,16 @@ class ImageCaptioner {
 
         // Event listeners for the buttons in the side panel
         document.getElementById('clearAllBtn').addEventListener('click', () => this.clearAll());
+        document.getElementById('clearAllBtn-2').addEventListener('click', () => this.clearAll());
+
         document.getElementById('downloadDatasetBtn').addEventListener('click', () => this.downloadDataset());
-        
-        // This button now saves to localStorage
-        document.getElementById('saveProgressBtn').addEventListener('click', () => {
-            this.saveProgress();
-            this.showNotification('Progress saved automatically!', 'success');
-        });
+        document.getElementById('downloadDatasetBtn-2').addEventListener('click', () => this.downloadDataset());
+
+        // // This button now saves to localStorage
+        // document.getElementById('saveProgressBtn').addEventListener('click', () => {
+        //     this.saveProgress();
+        //     this.showNotification('Progress saved automatically!', 'success');
+        // });
 
         // New button to load from localStorage
         document.getElementById('loadProgressBtn').addEventListener('click', () => {
@@ -64,13 +67,7 @@ class ImageCaptioner {
         if (downloadDatasetBtnMain) {
             downloadDatasetBtnMain.addEventListener('click', () => this.downloadDataset());
         }
-        const saveProgressBtnMain = document.getElementById('saveProgressBtn_main');
-        if (saveProgressBtnMain) {
-            saveProgressBtnMain.addEventListener('click', () => {
-                this.saveProgress();
-                this.showNotification('Progress saved automatically!', 'success');
-            });
-        }
+       
         const loadProgressBtnMain = document.getElementById('loadProgressBtn_main');
         if (loadProgressBtnMain) {
             loadProgressBtnMain.addEventListener('click', () => {
