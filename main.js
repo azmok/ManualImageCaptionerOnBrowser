@@ -226,15 +226,15 @@ class ImageCaptioner {
     }
 
     saveProgress() {
-        // const progressData = this.images.map(img => ({
-        //     id: img.id,
-        //     name: img.name,
-        //     size: img.size,
-        //     caption: img.caption,
-        //     // The file object is not serializable, so we don't save it.
-        //     dataUrl: img.dataUrl
-        // }));
-        // localStorage.setItem('captioningProgress', JSON.stringify(progressData));
+        const progressData = this.images.map(img => ({
+            id: img.id,
+            name: img.name,
+            size: img.size,
+            caption: img.caption,
+            // The file object is not serializable, so we don't save it.
+            // dataUrl: img.dataUrl
+        }));
+        localStorage.setItem('captioningProgress', JSON.stringify(progressData));
     }
 
     loadProgress() {
