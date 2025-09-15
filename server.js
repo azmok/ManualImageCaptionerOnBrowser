@@ -34,7 +34,7 @@ const upload = multer({ storage: storage });
 // --- Routes ---
 
 // Upload images
-app.post('/api/upload', upload.array('images', 100), async (req, res) => {
+app.post('/api/upload', upload.array('images', 300), async (req, res) => {
   try {
     const captions = Array.isArray(req.body.captions)
       ? req.body.captions
