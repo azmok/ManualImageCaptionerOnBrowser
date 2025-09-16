@@ -35,14 +35,18 @@ class ImageCaptioner {
             this.handleFileUpload(e.dataTransfer.files);
         });
 
+        // Event listeners for the buttons in the side panel
         document.getElementById('clearAllBtn').addEventListener('click', () => this.clearAll());
+        document.getElementById('clearAllBtn-2').addEventListener('click', () => this.clearAll());
+
         document.getElementById('downloadDatasetBtn').addEventListener('click', () => this.downloadDataset());
-        
-        // This button now saves to localStorage
-        document.getElementById('saveProgressBtn').addEventListener('click', () => {
-            this.saveProgress();
-            this.showNotification('Progress saved automatically!', 'success');
-        });
+        document.getElementById('downloadDatasetBtn-2').addEventListener('click', () => this.downloadDataset());
+
+        // // This button now saves to localStorage
+        // document.getElementById('saveProgressBtn').addEventListener('click', () => {
+        //     this.saveProgress();
+        //     this.showNotification('Progress saved automatically!', 'success');
+        // });
 
         // New button to load from localStorage
         document.getElementById('loadProgressBtn').addEventListener('click', () => {
@@ -53,6 +57,28 @@ class ImageCaptioner {
             }
             this.loadProgress();
         });
+
+        // Event listeners for the buttons in the main content area
+        const clearAllBtnMain = document.getElementById('clearAllBtn_main');
+        if (clearAllBtnMain) {
+            clearAllBtnMain.addEventListener('click', () => this.clearAll());
+        }
+        const downloadDatasetBtnMain = document.getElementById('downloadDatasetBtn_main');
+        if (downloadDatasetBtnMain) {
+            downloadDatasetBtnMain.addEventListener('click', () => this.downloadDataset());
+        }
+       
+        const loadProgressBtnMain = document.getElementById('loadProgressBtn_main');
+        if (loadProgressBtnMain) {
+            loadProgressBtnMain.addEventListener('click', () => {
+                if (this.images.length > 0) {
+                    if (!confirm('Loading will overwrite your current session. Continue?')) {
+                        return;
+                    }
+                }
+                this.loadProgress();
+            });
+        }
     }
 
     async handleFileUpload(files) {
@@ -82,55 +108,66 @@ class ImageCaptioner {
 
         await Promise.all(captionPromises);
 
-        const processedImages = await Promise.all(imageFiles.map(async file => {
+        // Process images and store the file object
+        const processedImages = [];
+        for (const file of imageFiles) {
             const baseName = file.name.replace(/\.[^.]+$/, '');
-            const compressedDataUrl = await this.resizeAndCompressImage(file, 0.5); // 50% quality
-            return {
+            const dataUrl = await new Promise(resolve => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result);
+                reader.readAsDataURL(file);
+            });
+            processedImages.push({
                 id: Date.now() + Math.random(),
                 name: file.name,
-                size: compressedDataUrl.length, // use new size
-                file: compressedDataUrl, // store data URL instead of file object
-                dataUrl: compressedDataUrl,
+                size: file.size,
+                file: file, // Store the original file object
+                dataUrl: dataUrl,
                 caption: captionsMap.get(baseName) || ''
-            };
-        }));
+            });
+        }
         
         this.images = [...this.images, ...processedImages];
         this.saveProgress(); // Auto-save after upload
         this.updateUI();
-        this.showNotification(`${imageFiles.length} images uploaded and compressed!`, 'success');
+        this.showNotification(`${imageFiles.length} images uploaded and ready!`, 'success');
     }
 
-    async resizeAndCompressImage(file, quality) {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const img = new Image();
-                img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    const ctx = canvas.getContext('2d');
-                    canvas.width = img.width;
-                    canvas.height = img.height;
-                    ctx.drawImage(img, 0, 0);
-                    const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
-                    resolve(compressedDataUrl);
-                };
-                img.onerror = reject;
-                img.src = event.target.result;
-            };
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
+    updateImageTags(image) {
+        const card = document.querySelector(`[data-image-id="${image.id}"]`);
+        if (!card) return;
+
+        const imageTagsContainer = card.querySelector('.image-tags-container');
+        if (!imageTagsContainer) return;
+
+        // Clear old buttons
+        imageTagsContainer.innerHTML = '';
+
+        // Recalculate tag counts
+        this.updateAllTagsWithCounts();
+
+        const maxCount = Math.max(1, ...Array.from(this.allTagsWithCounts.values()));
+
+        // Add updated buttons for this image
+        this.createTagButtonsForImage(image, maxCount).forEach(button => {
+            imageTagsContainer.appendChild(button);
         });
     }
+
 
     updateCaption(imageId, caption) {
         const image = this.images.find(img => img.id === imageId);
         if (image) {
             image.caption = caption;
-            this.saveProgress(); // Auto-save on every caption change
-            this.updateUI();
+
+            this.saveProgress(); // save to localStorage
+
+            // Update tags for this image without re-rendering gallery
+            this.updateImageTags(image);
+            this.renderSidePanel(); // optional: update side panel counts
         }
     }
+
 
     deleteImage(imageId) {
         this.images = this.images.filter(img => img.id !== imageId);
@@ -158,9 +195,8 @@ class ImageCaptioner {
         const zip = new JSZip();
         for (const image of this.images) {
             try {
-                // Convert data URL to Blob for saving to zip
-                const blob = await fetch(image.dataUrl).then(res => res.blob());
-                zip.file(image.name, blob);
+                // Use the original file object to add to the zip
+                zip.file(image.name, image.file);
                 
                 if (image.caption.trim()) {
                     const baseName = image.name.replace(/\.[^.]+$/, '');
@@ -195,7 +231,8 @@ class ImageCaptioner {
             name: img.name,
             size: img.size,
             caption: img.caption,
-            dataUrl: img.dataUrl // Save the compressed data URL
+            // The file object is not serializable, so we don't save it.
+            // dataUrl: img.dataUrl
         }));
         localStorage.setItem('captioningProgress', JSON.stringify(progressData));
     }
@@ -207,11 +244,12 @@ class ImageCaptioner {
                 const loadedImages = JSON.parse(savedData);
                 this.images = loadedImages.map(img => ({
                     ...img,
-                    // The 'file' property is not needed for display, dataUrl is sufficient
-                    file: null
+                    file: null // The file object cannot be saved and will be null here
                 }));
                 this.updateUI();
                 this.showNotification('Session loaded from last backup!', 'info');
+                // IMPORTANT: Warn the user that they cannot download a dataset from a loaded session
+                this.showNotification('Note: You cannot download the dataset from a loaded session. Please re-upload your files if you need to download them.', 'warning');
                 return true;
             } catch (error) {
                 console.error("Failed to load progress from localStorage:", error);
@@ -292,6 +330,8 @@ class ImageCaptioner {
             textarea.addEventListener('input', (e) => {
                 this.updateCaption(image.id, e.target.value);
                 card.querySelector('.char-count span').textContent = e.target.value.length;
+                this.updateAllTagsWithCounts(); // Optional: update tag counts
+                this.renderSidePanel(); // Optional: update side panel
             });
 
             card.querySelector('.delete-btn').addEventListener('click', () => {
@@ -404,6 +444,11 @@ class ImageCaptioner {
                 this.deleteTagFromAllCaptions(item.tag);
             });
 
+            // Prevent the parent LI's click event from firing when clicking on the input
+            editInput.addEventListener('click', (e) => {
+                e.stopPropagation();
+            });
+
             editInput.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') {
                     e.preventDefault();
@@ -415,6 +460,13 @@ class ImageCaptioner {
                     tagActionsDiv.style.display = 'flex';
                     editInput.style.display = 'none';
                 }
+            });
+
+            // Add a blur event listener to exit edit mode when the input loses focus
+            editInput.addEventListener('blur', () => {
+                tagTextSpan.style.display = 'block';
+                tagActionsDiv.style.display = 'flex';
+                editInput.style.display = 'none';
             });
 
             list.appendChild(li);
@@ -469,7 +521,7 @@ class ImageCaptioner {
             this.saveProgress();
             this.showNotification(`Modified "${oldTag}" to "${newTag}" in ${modifiedCount} caption${modifiedCount === 1 ? '' : 's'}.`, 'success');
         } else {
-            this.showNotification(`No captions found with the tag "${oldTag}".`, 'info');
+            this.showNotification('No captions found with the tag "${oldTag}".', 'info');
         }
     }
 
