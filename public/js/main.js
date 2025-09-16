@@ -112,71 +112,273 @@ class ImageCaptioner {
         if (fileInfo) fileInfo.textContent = '';
     }
 
-    async handleFileUpload(files) {
-        const filesArray = Array.from(files);
-        const imageFiles = filesArray.filter(f => f.type.startsWith('image/'));
-        const captionFiles = filesArray.filter(f => f.name.endsWith('.txt'));
-        const captionsMap = new Map();
+    // Complete client-side upload methods - replace the existing methods in your main.js
 
-        if (imageFiles.length === 0) {
-            this.showNotification('No images were uploaded.', 'error');
-            return;
-        }
+async handleFileUpload(files) {
+    const filesArray = Array.from(files);
+    const imageFiles = filesArray.filter(f => f.type.startsWith('image/'));
+    const captionFiles = filesArray.filter(f => f.name.endsWith('.txt'));
+    const captionsMap = new Map();
 
-        // Process caption files first
-        for (const file of captionFiles) {
-            const text = await file.text();
-            const baseName = file.name.replace(/\.txt$/, '');
-            captionsMap.set(baseName, text);
-        }
+    
+    // console.log( ` in handleFileUpload` )
 
-        const formData = new FormData();
-        for (const file of imageFiles) {
-            const baseName = file.name.replace(/\.[^.]+$/, '');
-            const caption = captionsMap.get(baseName) || '';
-            formData.append('images', file);
-            formData.append('captions', caption);
-        }
-
-        return new Promise((resolve, reject) => {
-            const xhr = new XMLHttpRequest();
-
-            // Progress tracking
-            xhr.upload.addEventListener('progress', (e) => {
-                if (e.lengthComputable) {
-                    const percentage = Math.round((e.loaded / e.total) * 100);
-                    this.showUploadProgress(e.loaded, e.total, 'Uploading...');
-                }
-            });
-
-            xhr.addEventListener('load', async () => {
-                if (xhr.status >= 200 && xhr.status < 300) {
-                    this.showNotification('Upload complete! Refreshing gallery...', 'success');
-                    await this.loadImages();
-                    resolve(xhr.response);
-                } else {
-                    this.showNotification('Upload failed', 'error');
-                    reject(new Error('Upload failed'));
-                }
-                this.hideUploadProgress();
-            });
-
-            xhr.addEventListener('error', () => {
-                this.showNotification('Upload failed', 'error');
-                this.hideUploadProgress();
-                reject(new Error('Upload failed'));
-            });
-
-            xhr.addEventListener('abort', () => {
-                this.showNotification('Upload cancelled', 'info');
-                this.hideUploadProgress();
-                reject(new Error('Upload cancelled'));
-            });
-
-            xhr.open('POST', '/api/upload');
-            xhr.send(formData);
-        });
+    if (imageFiles.length === 0) {
+        this.showNotification('No images were uploaded.', 'error');
+        return;
     }
+
+    // Process caption files first
+    for (const file of captionFiles) {
+        const text = await file.text();
+        const baseName = file.name.replace(/\.txt$/, '');
+        captionsMap.set(baseName, text.trim()); // Ensure we trim the caption
+    }
+
+    console.log(`Found ${captionFiles.length} caption files`);
+    console.log(`Caption map size: ${captionsMap.size}`);
+    
+    // Debug: Log first few caption mappings
+    let debugCount = 0;
+    for (let [key, value] of captionsMap) {
+        if (debugCount < 3) {
+            console.log(`Caption mapping: "${key}" -> "${value}"`);
+            debugCount++;
+        }
+    }
+
+    // Determine if we need to chunk the upload
+    const CHUNK_SIZE = 50;
+    const shouldChunk = imageFiles.length > CHUNK_SIZE;
+
+    if (shouldChunk) {
+        await this.handleChunkedUpload(imageFiles, captionsMap, CHUNK_SIZE);
+    } else {
+        await this.handleSingleUpload(imageFiles, captionsMap);
+    }
+}
+
+async handleChunkedUpload(imageFiles, captionsMap, chunkSize) {
+    const totalFiles = imageFiles.length;
+    const chunks = [];
+    
+    // Create chunks
+    for (let i = 0; i < totalFiles; i += chunkSize) {
+        chunks.push(imageFiles.slice(i, i + chunkSize));
+    }
+
+    this.showNotification(`Uploading ${totalFiles} images in ${chunks.length} batches...`, 'info');
+    console.log(`Starting chunked upload: ${chunks.length} chunks of up to ${chunkSize} files each`);
+
+    try {
+        let totalCaptionedImages = 0;
+        
+        for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
+            const chunk = chunks[chunkIndex];
+            const startIndex = chunkIndex * chunkSize;
+            
+            // Show progress for current chunk
+            this.showUploadProgress(
+                startIndex, 
+                totalFiles, 
+                `Batch ${chunkIndex + 1}/${chunks.length}`,
+                startIndex,
+                totalFiles
+            );
+
+            const response = await this.uploadChunk(chunk, captionsMap, chunkIndex + 1, chunks.length);
+            
+            // Track captioned images if response includes the count
+            if (response && response.captionedCount !== undefined) {
+                totalCaptionedImages += response.captionedCount;
+            }
+            
+            // Brief pause between chunks to prevent overwhelming the server
+            if (chunkIndex < chunks.length - 1) {
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+        }
+
+        this.showNotification(
+            `Successfully uploaded ${totalFiles} images${totalCaptionedImages > 0 ? ` (${totalCaptionedImages} with captions)` : ''}!`, 
+            'success'
+        );
+        await this.loadImages();
+    } catch (error) {
+        this.showNotification(`Upload failed: ${error.message}`, 'error');
+        console.error('Chunked upload error:', error);
+    } finally {
+        this.hideUploadProgress();
+    }
+}
+
+async uploadChunk(imageFiles, captionsMap, chunkNumber, totalChunks) {
+    const formData = new FormData();
+    
+
+    console.log( `@@@@@@@@@@@@@@ uploadChunk` )
+    
+    // console.log(`Preparing chunk ${chunkNumber} with ${imageFiles.length} files`);
+    
+    // Build arrays to maintain order
+    const chunkCaptions = [];
+    
+    for (let i = 0; i < imageFiles.length; i++) {
+        const file = imageFiles[i];
+        const baseName = file.name.replace(/\.[^.]+$/, ''); // Remove extension
+        const caption = captionsMap.get(baseName) || '';
+
+
+         console.log( `@@@@@@caption@@@@@@ ${caption} @@@@@@@@@@` )
+        
+        
+         // Debug: Log first few files in each chunk
+        if (i < 3) {
+            console.log(`Chunk ${chunkNumber}, File ${i}: "${file.name}" -> baseName: "${baseName}" -> caption: "${caption}"`);
+        }
+        
+        formData.append('images', file);
+        chunkCaptions.push(caption);
+    }
+    
+    // Append all captions to FormData
+    chunkCaptions.forEach(caption => {
+        formData.append('captions', caption);
+    });
+    
+    console.log(`Chunk ${chunkNumber}: ${imageFiles.length} images, ${chunkCaptions.length} captions`);
+
+    return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+
+        xhr.upload.addEventListener('progress', (e) => {
+            if (e.lengthComputable) {
+                this.showUploadProgress(
+                    e.loaded, 
+                    e.total, 
+                    `Batch ${chunkNumber}/${totalChunks}`,
+                    chunkNumber - 1,
+                    totalChunks
+                );
+            }
+        });
+
+        xhr.addEventListener('load', () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                try {
+                    const response = JSON.parse(xhr.responseText);
+                    console.log(`Chunk ${chunkNumber} response:`, response);
+                    resolve(response);
+                } catch (parseError) {
+                    console.log(`Chunk ${chunkNumber} completed (couldn't parse response)`);
+                    resolve({ captionedCount: 0 }); // Return default object
+                }
+            } else {
+                reject(new Error(`Batch ${chunkNumber} failed with status ${xhr.status}`));
+            }
+        });
+
+        xhr.addEventListener('error', () => {
+            reject(new Error(`Network error in batch ${chunkNumber}`));
+        });
+
+        xhr.addEventListener('timeout', () => {
+            reject(new Error(`Timeout in batch ${chunkNumber}`));
+        });
+
+        xhr.timeout = 300000; // 5 minutes
+        xhr.open('POST', '/api/upload');
+        xhr.send(formData);
+    });
+}
+
+async handleSingleUpload(imageFiles, captionsMap) {
+    const formData = new FormData();
+    const allCaptions = [];
+    
+    console.log(`Preparing single upload with ${imageFiles.length} files`);
+    
+    for (let i = 0; i < imageFiles.length; i++) {
+        const file = imageFiles[i];
+        const baseName = file.name.replace(/\.[^.]+$/, '');
+        const caption = captionsMap.get(baseName) || '';
+        
+        // Debug: Log first few files
+        if (i < 5) {
+            console.log(`File ${i}: "${file.name}" -> baseName: "${baseName}" -> caption: "${caption}"`);
+        }
+        
+        formData.append('images', file);
+        allCaptions.push(caption);
+    }
+    
+    // Append all captions
+    allCaptions.forEach(caption => {
+        formData.append('captions', caption);
+    });
+    
+    console.log(`Single upload: ${imageFiles.length} images, ${allCaptions.length} captions`);
+
+    return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+
+        xhr.upload.addEventListener('progress', (e) => {
+            if (e.lengthComputable) {
+                this.showUploadProgress(e.loaded, e.total, 'Uploading...');
+            }
+        });
+
+        xhr.addEventListener('load', async () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                try {
+                    const response = JSON.parse(xhr.responseText);
+                    console.log('Upload response:', response);
+                    
+                    if (response.captionedCount !== undefined) {
+                        this.showNotification(
+                            `Upload complete! ${response.count} images uploaded, ${response.captionedCount} with captions. Refreshing gallery...`, 
+                            'success'
+                        );
+                    } else {
+                        this.showNotification('Upload complete! Refreshing gallery...', 'success');
+                    }
+                    
+                    await this.loadImages();
+                    resolve(response);
+                } catch (parseError) {
+                    console.error('Response parsing error:', parseError);
+                    this.showNotification('Upload completed! Refreshing gallery...', 'success');
+                    await this.loadImages();
+                    resolve();
+                }
+            } else {
+                this.showNotification('Upload failed', 'error');
+                reject(new Error('Upload failed'));
+            }
+            this.hideUploadProgress();
+        });
+
+        xhr.addEventListener('error', () => {
+            this.showNotification('Upload failed', 'error');
+            this.hideUploadProgress();
+            reject(new Error('Upload failed'));
+        });
+
+        xhr.addEventListener('abort', () => {
+            this.showNotification('Upload cancelled', 'info');
+            this.hideUploadProgress();
+            reject(new Error('Upload cancelled'));
+        });
+
+        xhr.timeout = 600000; // 10 minutes
+        xhr.open('POST', '/api/upload');
+        xhr.send(formData);
+    });
+}
+
+
+
+
 
     async updateCaption(imageId, caption) {
         try {

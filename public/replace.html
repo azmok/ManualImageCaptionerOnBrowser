@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Text Insertion</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f0f2f5;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            width: 90%;
+            max-width: 600px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #1a237e;
+        }
+
+        .foo-box {
+            background-color: #e8eaf6;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px dashed #7986cb;
+            margin-bottom: 20px;
+            min-height: 100px;
+            font-size: 1.1em;
+            line-height: 1.6;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        .input-group input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 1em;
+            box-sizing: border-box;
+        }
+
+        .input-group input[type="text"]:focus {
+            outline: none;
+            border-color: #5c6bc0;
+            box-shadow: 0 0 0 2px rgba(92, 107, 192, 0.2);
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #3f51b5;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #303f9f;
+        }
+
+        .radio-group {
+            display: flex;
+            gap: 20px;
+        }
+
+        .radio-group label {
+            font-weight: normal;
+            color: #555;
+        }
+
+        .choice_replace_insert > input,
+        .choice_replace_insert > label{
+            display: inline-block;
+            vertical-align: middle;
+        }
+        .choice_replace_insert > label{
+            font-size: 0.9em;
+        }
+        input#insertIfAbsence{
+            margin-left: 8px;
+            transform: scale(1.2);
+            border-radius: 25px;
+        }
+        .insertIfAbsence{
+            display: none;
+        }
+        input#insert:checked ~ .insertIfAbsence{
+            display: inline-block;
+        }
+        
+    </style>
+</head>
+<body>
+    <div class="sarch_replace_wedget">
+        <h1>Text Manipulation Demo</h1>
+        <div class="foo-box foo">
+            This is an example text. We want to insert a word after "example".
+        </div>
+        <div class="choice_replace_insert">
+            <h3>Insert/Replace</h3>
+            <div class="radio-group">
+                <label for="replace">Replace</label><input type="radio" name="replaceType" id="replace" value="replace"></lable>
+                <label for="insert">Insert</label><input type="radio" name="replaceType" id="insert"></lable>
+
+                <input type="checkbox" id="insertIfAbsence" class="insertIfAbsence">
+                <label for="insertIfAbsence" class="insertIfAbsence">If Absent</label>
+            </div>
+        <div>
+        <div class="input-group">
+            <h3>Search type:</h3>
+            <div class="radio-group">
+                <label for="searchType1"><input type="radio" name="searchType" id="searchType1" value="text">Text</label>
+                <label for="searchType2"><input type="radio" name="searchType" id="searchType2" value="regex" checked> Regex Search</label>
+            </div>
+        </div>
+        <div class="input-group">
+            <label for="input1" id="input1Lable">2. Text to search:</label>
+            <input type="text" id="input1" placeholder="e.g., 'new word'">
+        </div>
+        <div class="insertionPosition">
+            <div class="input-group">
+                <label>Insertion position:</label>
+                <div class="radio-group">
+                    <label for="position1"><input type="radio" name="position" id="position1" value="prepend" checked> Prepend</label>
+                    <label for="position2"><input type="radio" name="position" id="position2" value="append"> Append</label>
+                </div>
+            </div>
+            <div class="input-group">
+                <label for="input2">Regex: insertion point:</label>
+                <input type="text" id="input2" placeholder="e.g., '(example)'">
+            </div>
+        </div>
+        <button id="runButton">run</button>
+    </div>
+    <script>
+document.addEventListener('DOMContentLoaded', () => {
+    const runButton = document.getElementById('runButton');
+    const input1 = document.getElementById('input1');
+    const input1Label = document.getElementById('input1Lable');
+    const input2 = document.getElementById('input2');
+    const fooElement = document.querySelector('.foo');
+
+
+
+    // hide/show for replace/insert choice
+    const replaceRadio = document.getElementById('replace');
+    const insertRadio = document.getElementById('insert');
+
+    // Show replace Panel
+    replaceRadio.addEventListener('change', (e) => {
+        if (e.target.checked) {
+            document.querySelector('.insertionPosition').style.display = 'none';
+            console.log( input1Label.textContent )
+            newTxt = input1Label.textContent.replace('search', 'Replace')
+            console.log( newTxt )
+            input1Label.textContent = newTxt;
+        }
+    });
+
+    // Show insert Panel
+    insertRadio.addEventListener('change', (e) => {
+        if (e.target.checked) {
+            document.querySelector('.insertionPosition').style.display = 'block';
+            console.log( input1Label.textContent )
+            newTxt = input1Label.textContent.replace('Replace', 'search')
+            console.log( newTxt )
+            input1Label.textContent = newTxt;
+        }
+    });
+
+
+    // insert/replace logic
+    runButton.addEventListener('click', () => {
+        const isReplace = document.getElementById('replace').checked;
+        const ifAbsenceIsChecked = document.getElementById('insertIfAbsence').checked;
+        const reg_search = input1.value;
+        const text_insert = reg_search.replace(/\^|\$/g, '');
+        const reg_insertPos = input2.value;
+        const searchType = document.querySelector('input[name="searchType"]:checked').value;
+        const position = document.querySelector('input[name="position"]:checked').value;
+        const currentText = fooElement.textContent;
+        let isPresent = false;
+        let regex = null;
+
+        if (!reg_search || !reg_insertPos) {
+            alert('Please fill out all fields.');
+            return;
+        }
+
+        try {
+            regex = new RegExp(reg_search);
+            isPresent = regex.test(currentText);
+        } catch (e) {
+            alert('Invalid regex search pattern: ' + e.message);
+            return;
+        }
+    
+
+        if (isReplace){        
+            if (!isPresent) { // error
+                alert('Search text not found in the content.');
+                return;
+            } else { // Replace              
+                console.log( "replace" )
+            }
+        } else { // isInsert
+            if (ifAbsenceIsChecked){ // if absence
+                console.log( "insert if absence" )
+                try {
+                    const regex = new RegExp(reg_insertPos, 'g');
+                    let newText;
+
+                    if (position === 'append') {
+                        newText = currentText.replace(regex, (match, offset, str)=>{
+                            return `${match}${text_insert}`;  
+                        });
+                    } else { // position === 'prepend'
+                        newText = currentText.replace(regex, (match, offset, str)=>{
+                            return `${text_insert}${match}`;  
+                        });
+                    }
+                    console.log( newText )
+                    fooElement.textContent = newText;
+                } catch (e) {
+                    alert('Invalid regex insertion pattern: ' + e.message);
+                }
+            } else { // normal insert
+                console.log( "normal insert")
+                if (position === 'append') {
+                    newText = currentText.replace(regex, (match, offset, str)=>{
+                        return `${match}${text_insert}`;  
+                    });
+                } else { // position === 'prepend'
+                    newText = currentText.replace(regex, (match, offset, str)=>{
+                        return `${text_insert}${match}`;  
+                    });
+                }
+            }
+        }
+    });
+});
+    </script>
+</body>
+</html>
