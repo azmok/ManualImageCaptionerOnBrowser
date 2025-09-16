@@ -9,6 +9,11 @@ const PORT = 3000;
 // Enable JSON parsing
 app.use(express.json());
 app.use(cors());
+app.use(express.static('public', {
+  maxAge: 0 // disable server-side caching
+}));
+
+
 
 // --- MongoDB setup ---
 mongoose.connect('mongodb://localhost:27017/imageUploads')
