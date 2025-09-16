@@ -1025,3 +1025,31 @@ let captioner;
 document.addEventListener('DOMContentLoaded', () => {
     captioner = new ImageCaptioner();
 });
+
+
+// Drag to resize side panel
+const sidePanel = document.getElementById('sidePanel');
+const handle = document.getElementById('sidePanelHandle');
+let isResizing = false;
+
+handle.addEventListener('mousedown', (e) => {
+    isResizing = true;
+    document.body.style.cursor = 'ew-resize';
+});
+
+document.addEventListener('mousemove', (e) => {
+    e.preventDefault();
+    if (isResizing) {
+        const newWidth = window.innerWidth - e.clientX;
+        if (newWidth >= 200 && newWidth <= 600) { // Set min and max width
+            sidePanel.style.width = `${newWidth}px`;
+        }
+    }
+});
+
+document.addEventListener('mouseup', () => {
+    if (isResizing) {
+        isResizing = false;
+        document.body.style.cursor = 'default';
+    }
+});

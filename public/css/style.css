@@ -290,6 +290,7 @@ body {
 
 /* Sidebar Styles */
 #sidePanel {
+  position: relative;
   width: 320px;
   padding: 20px;
   height: fit-content;
@@ -297,6 +298,17 @@ body {
   top: 20px;
   max-height: calc(100vh - 40px);
   overflow-y: auto;
+}
+#sidePanelHandle{
+  width: 5px;
+  height: 40px;
+  background: linear-gradient(135deg, #babcc4, #a9b1aa);
+  border-radius: 8px;
+  cursor: se-resize;
+  position: absolute;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
 }
 
 #sidePanel h3 {
@@ -552,7 +564,6 @@ body {
 @media (max-width: 1200px) {
   .app-container {
     flex-direction: column;
-    
   }
 
   #sidePanel {
