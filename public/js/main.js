@@ -66,34 +66,71 @@ class ImageCaptioner {
         }
     }
 
+    // Update the showUploadProgress method to show file count
+    showUploadProgress(loaded, total, currentFile, currentFileIndex, totalFiles) {
+        const progressContainer = document.getElementById('uploadProgressContainer');
+        const progressBar = document.getElementById('uploadProgressBar');
+        const progressText = document.getElementById('uploadProgressText');
+        const fileInfo = document.getElementById('uploadFileInfo');
+
+        if (progressContainer) {
+            progressContainer.style.display = 'block';
+        }
+
+        const percentage = total > 0 ? Math.round((loaded / total) * 100) : 0;
+        
+        if (progressBar) {
+            progressBar.style.width = `${percentage}%`;
+        }
+        
+        if (progressText) {
+            progressText.textContent = `${percentage}%`;
+        }
+        
+        if (fileInfo) {
+            if (currentFileIndex !== undefined && totalFiles !== undefined) {
+                fileInfo.textContent = `File ${currentFileIndex + 1} of ${totalFiles}: ${currentFile}`;
+            } else {
+                fileInfo.textContent = currentFile;
+            }
+        }
+    }
+
+    hideUploadProgress() {
+        const progressContainer = document.getElementById('uploadProgressContainer');
+        if (progressContainer) {
+            progressContainer.style.display = 'none';
+        }
+        
+        // Reset progress bar
+        const progressBar = document.getElementById('uploadProgressBar');
+        const progressText = document.getElementById('uploadProgressText');
+        const fileInfo = document.getElementById('uploadFileInfo');
+        
+        if (progressBar) progressBar.style.width = '0%';
+        if (progressText) progressText.textContent = '0%';
+        if (fileInfo) fileInfo.textContent = '';
+    }
+
     async handleFileUpload(files) {
-        const formData = new FormData();
         const filesArray = Array.from(files);
         const imageFiles = filesArray.filter(f => f.type.startsWith('image/'));
         const captionFiles = filesArray.filter(f => f.name.endsWith('.txt'));
         const captionsMap = new Map();
-        const captionPromises = [];
 
         if (imageFiles.length === 0) {
             this.showNotification('No images were uploaded.', 'error');
             return;
         }
 
-        captionFiles.forEach(file => {
-            const reader = new FileReader();
-            const promise = new Promise(resolve => {
-                reader.onload = (e) => {
-                    const baseName = file.name.replace(/\.txt$/, '');
-                    captionsMap.set(baseName, e.target.result);
-                    resolve();
-                };
-                reader.readAsText(file);
-            });
-            captionPromises.push(promise);
-        });
+        // Process caption files first
+        for (const file of captionFiles) {
+            const text = await file.text();
+            const baseName = file.name.replace(/\.txt$/, '');
+            captionsMap.set(baseName, text);
+        }
 
-        await Promise.all(captionPromises);
-
+        const formData = new FormData();
         for (const file of imageFiles) {
             const baseName = file.name.replace(/\.[^.]+$/, '');
             const caption = captionsMap.get(baseName) || '';
@@ -101,19 +138,44 @@ class ImageCaptioner {
             formData.append('captions', caption);
         }
 
-        try {
-            const response = await fetch('/api/upload', {
-                method: 'POST',
-                body: formData,
-            });
-            if (!response.ok) throw new Error('Upload failed');
+        return new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
 
-            this.showNotification('Upload complete! Refreshing gallery...', 'success');
-            await this.loadImages();
-        } catch (error) {
-            console.error(error);
-            this.showNotification('Failed to upload files', 'error');
-        }
+            // Progress tracking
+            xhr.upload.addEventListener('progress', (e) => {
+                if (e.lengthComputable) {
+                    const percentage = Math.round((e.loaded / e.total) * 100);
+                    this.showUploadProgress(e.loaded, e.total, 'Uploading...');
+                }
+            });
+
+            xhr.addEventListener('load', async () => {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    this.showNotification('Upload complete! Refreshing gallery...', 'success');
+                    await this.loadImages();
+                    resolve(xhr.response);
+                } else {
+                    this.showNotification('Upload failed', 'error');
+                    reject(new Error('Upload failed'));
+                }
+                this.hideUploadProgress();
+            });
+
+            xhr.addEventListener('error', () => {
+                this.showNotification('Upload failed', 'error');
+                this.hideUploadProgress();
+                reject(new Error('Upload failed'));
+            });
+
+            xhr.addEventListener('abort', () => {
+                this.showNotification('Upload cancelled', 'info');
+                this.hideUploadProgress();
+                reject(new Error('Upload cancelled'));
+            });
+
+            xhr.open('POST', '/api/upload');
+            xhr.send(formData);
+        });
     }
 
     async updateCaption(imageId, caption) {
@@ -153,7 +215,7 @@ class ImageCaptioner {
 
 
     async clearAll() {
-        console.log( 'clear all button clicked')
+        // console.log('clear all button clicked')
         if (this.images.length === 0) return;
         if (!confirm('Are you sure you want to clear all images and captions? This cannot be undone.')) {
             return;
@@ -356,7 +418,7 @@ class ImageCaptioner {
         const list = document.getElementById('captionList');
         list.innerHTML = '';
         const allTags = Array.from(this.allTagsWithCounts, ([tag, count]) => ({ tag, count }));
-        
+
         allTags.sort((a, b) => {
             const countDifference = b.count - a.count;
             if (countDifference !== 0) {
@@ -432,13 +494,13 @@ class ImageCaptioner {
         this.addAppendPrependPanel();
         this.addDeletePanel();
     }
-    
+
     async deleteTagFromAllCaptions(tagToDelete) {
         if (!confirm(`Are you sure you want to delete "${tagToDelete}" from all captions? This cannot be undone.`)) {
             this.showNotification('Tag deletion cancelled.', 'info');
             return;
         }
-        
+
         const updates = [];
         this.images.forEach(img => {
             let tags = img.caption ? img.caption.split(',').map(s => s.trim()) : [];
@@ -487,7 +549,7 @@ class ImageCaptioner {
             this.showNotification('Caption application cancelled.', 'info');
             return;
         }
-        
+
         const updates = [];
         for (const image of this.images) {
             const existingCaption = image.caption ? image.caption.trim() : '';
@@ -509,17 +571,17 @@ class ImageCaptioner {
     }
 
     async findAndModifyCaptions(operation) {
-        const targetTextInput = operation === 'delete' 
-            ? document.getElementById('targetTextInputDelete') 
+        const targetTextInput = operation === 'delete'
+            ? document.getElementById('targetTextInputDelete')
             : document.getElementById('targetTextInput');
-        
+
         const newTagInput = document.getElementById('newTagInput');
         const regexRadio = document.getElementById('regexRadio');
         const prependRadio = document.getElementById('prependRadio');
-        
+
         const targetText = targetTextInput.value;
         const newTag = newTagInput ? newTagInput.value.trim() : '';
-        const useRegex = operation === 'delete' 
+        const useRegex = operation === 'delete'
             ? document.getElementById('regexRadioDelete').checked
             : regexRadio.checked;
 
@@ -561,7 +623,7 @@ class ImageCaptioner {
             this.showNotification('Caption modification cancelled.', 'info');
             return;
         }
-        
+
         const updates = [];
         imagesToModify.forEach(img => {
             let newCaption = img.caption;
