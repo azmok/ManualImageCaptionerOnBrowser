@@ -1,1 +1,17 @@
-.gitignore
+# Dependency directory
+node_modules/
+
+# Log files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Editor and OS specific files
+.DS_Store
+.idea/
+.vscode/
+npm-debug.log
+.cache
+.env
+/di
