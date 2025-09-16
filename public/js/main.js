@@ -1053,3 +1053,104 @@ document.addEventListener('mouseup', () => {
         document.body.style.cursor = 'default';
     }
 });
+
+
+
+
+//// Menu Panel Logic
+// render settings menu
+const settingsPanelToggleBtn = document.getElementById('btn_settomgsToggle');
+const doc = document
+const renderElement = (obj)=>{
+    const tagName = obj.tagName || 'div';
+    const parentElement = obj.parentElement || doc.body;
+    const html = obj.html || '';
+    const id = obj.id ? `id="${obj.id}"` : '';
+    const className = obj.className ? `class="${obj.className}"` : '';
+    const styles = obj.styles ? `style="${obj.styles}"` : '';
+    const element = doc.createElement(tagName);
+    
+    if(id) element.setAttribute('id', obj.id);
+    if(className) element.setAttribute('class', obj.className);
+    if(styles) element.setAttribute('style', obj.styles);
+    element.innerHTML = html;
+    parentElement.appendChild(element);
+    return element;
+}
+
+const settingPanelConfig = {
+    tagName: 'div',
+    id: 'SettingsPanel',
+    className: 'settings-menu',
+    html: `
+        <h3>Settings</h3>
+        <div class="setting-item">
+            <label for="num-grid-columns">Grid Columns:</label>
+            <select name="num-grid-columns" id="num-grid-columns">
+                <option value="2">2</option>
+                <option value="3" selected>3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+            </select>
+        </div>
+        <div class="setting-item">
+            <label for="theme-select">Theme:</label>
+            <select name="theme-select" id="theme-select"> 
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+                <option value="system" selected>System Default</option>
+            </select>
+        </div>`
+}
+settingsPanel = renderElement(settingPanelConfig)
+
+// toggle menu
+settingsPanelToggleBtn.addEventListener('click', ()=>{
+    console.log('settings toggle clicked')
+    settingsPanel.classList.toggle('open');
+})
+
+// handle grid column change
+document.getElementById('num-grid-columns').addEventListener('change', (e)=>{
+    const numCols = e.target.value;
+    document.getElementById('gallery').style.gridTemplateColumns = `repeat(${numCols}, 1fr)`;
+})
+
+// handle theme change
+const themeSelect = document.getElementById('theme-select');
+const applyTheme = (theme) => {
+    if(theme === 'dark'){
+        document.body.classList.add('dark-mode');
+    } else if(theme === 'light'){
+        document.body.classList.remove('dark-mode');
+    } else {
+        // system default
+        if(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches){
+            document.body.classList.add('dark-mode');
+        } else {
+            document.body.classList.remove('dark-mode');
+        }
+    }
+}
+
+themeSelect.addEventListener('change', (e)=>{
+    const theme = e.target.value;
+    localStorage.setItem('preferredTheme', theme);
+    applyTheme(theme);
+})
+
+// apply saved theme on load
+document.addEventListener('DOMContentLoaded', ()=>{
+    const savedTheme = localStorage.getItem('preferredTheme') || 'system';
+    themeSelect.value = savedTheme;
+    applyTheme(savedTheme);
+})
+
+// listen to system theme changes
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+    const savedTheme = localStorage.getItem('preferredTheme') || 'system';
+    if(savedTheme === 'system'){
+        applyTheme('system');
+    }
+});
