@@ -544,7 +544,7 @@ async handleSingleUpload(imageFiles, captionsMap) {
             `;
 
             const textarea = card.querySelector('.caption-area');
-            textarea.addEventListener('input', (e) => {
+            textarea.addEventListener('blur', (e) => {
                 this.updateCaption(image._id, e.target.value);
                 card.querySelector('.char-count span').textContent = e.target.value.length;
                 this.updateAllTagsWithCounts();
