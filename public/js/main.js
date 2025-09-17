@@ -114,7 +114,7 @@ class ImageCaptioner {
 
     // Complete client-side upload methods - replace the existing methods in your main.js
 
-async handleFileUpload(files) {
+async handleFileUpload(files, projectName='') {
     const filesArray = Array.from(files);
     const imageFiles = filesArray.filter(f => f.type.startsWith('image/'));
     const captionFiles = filesArray.filter(f => f.name.endsWith('.txt'));
@@ -158,7 +158,7 @@ async handleFileUpload(files) {
     }
 }
 
-async handleChunkedUpload(imageFiles, captionsMap, chunkSize) {
+async handleChunkedUpload(imageFiles, captionsMap, chunkSize, projectName='') {
     const totalFiles = imageFiles.length;
     const chunks = [];
     
@@ -1019,6 +1019,57 @@ async handleSingleUpload(imageFiles, captionsMap) {
             deletePanel.remove();
         }
     }
+    async saveProject(){
+        const projectName = prompt("Enter project name:","My Project" );
+        const filesArray = Array.from(files);
+        const imageFiles = filesArray.filter(f => f.type.startsWith('image/'));
+        const captionFiles = filesArray.filter(f => f.name.endsWith('.txt'));
+        const captionsMap = new Map();
+
+        // implement saving project to DB
+        
+        try{
+            if(!projectName) throw new Error('Project name is required');
+        } catch(err){
+            console.error("Error saving project:", err);
+            this.showNotification('Failed to save project.', 'error');
+        }
+
+        if (imageFiles.length === 0) {
+            this.showNotification('No images were uploaded.', 'error');
+            return;
+        }
+
+        // Process caption files first
+        for (const file of captionFiles) {
+            const text = await file.text();
+            const baseName = file.name.replace(/\.txt$/, '');
+            captionsMap.set(baseName, text.trim()); // Ensure we trim the caption
+        }
+
+        console.log(`Found ${captionFiles.length} caption files`);
+        console.log(`Caption map size: ${captionsMap.size}`);
+        
+        // Debug: Log first few caption mappings
+        let debugCount = 0;
+        for (let [key, value] of captionsMap) {
+            if (debugCount < 3) {
+                console.log(`Caption mapping: "${key}" -> "${value}"`);
+                debugCount++;
+            }
+        }
+
+        // Determine if we need to chunk the upload
+        const CHUNK_SIZE = 50;
+        const shouldChunk = imageFiles.length > CHUNK_SIZE;
+
+        if (shouldChunk) {
+            await this.handleChunkedUpload(imageFiles, captionsMap, CHUNK_SIZE, projectName);
+        } else {
+            await this.handleSingleUpload(imageFiles, captionsMap, projectName);
+        }
+
+        }
 }
 
 let captioner;

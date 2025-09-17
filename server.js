@@ -7,7 +7,6 @@ const app = express();
 const PORT = 3000;
 
 // Enable JSON parsing
-// Increase payload size limit (add this before other middleware)
 app.use(express.json({ limit: '500mb' }));
 app.use(express.urlencoded({ limit: '500mb', extended: true }));
 
@@ -16,16 +15,22 @@ app.use(express.static('public', {
   maxAge: 0 // disable server-side caching
 }));
 
+// Serve frontend
+app.use(express.static('public'));
 
 
+// connect to MongoDB collection
+const connectToCollection = (collectionName='imageUploads') => {
+  mongoose.connect(`mongodb://localhost:27017/${collectionName}`)
+    .then(() => console.log(`MongoDB connected to ${collectionName}`))
+    .catch(err => console.error(err));
+}
 // --- MongoDB setup ---
-mongoose.connect('mongodb://localhost:27017/imageUploads')
-  .then(() => console.log('MongoDB connected'))
-  .catch(err => console.error(err));
-
+connectToCollection(); // default collection
 
 // --- MongoDB Schema ---
 const imageSchema = new mongoose.Schema({
+  projectName: String,
   filename: String,
   data: Buffer,
   contentType: String,
@@ -47,13 +52,7 @@ const upload = multer({
 });
 
 
-
-
-// --- Routes ---
-
-// Upload images
-// Fixed upload route with proper caption handling
-app.post('/api/upload', upload.array('images', 300), async (req, res) => {
+const processUpload = async (req, res) => {
   try {
     req.setTimeout(600000); // 10 minutes
     res.setTimeout(600000);
@@ -89,29 +88,52 @@ app.post('/api/upload', upload.array('images', 300), async (req, res) => {
 
     const BATCH_SIZE = 10;
     const savedImages = [];
-    
+    const projectName = req.files[0].projectName;
+
+    // save images as Project to new DB
+    if (projectName){
+      try{
+        connectToCollection();
+        
+      } catch(err){
+        console.error('Error connecting to projects DB:', err);
+        return res.status(500).json({ message: 'Failed to connect to projects DB', error: err.message });
+      }
+    }
+
     for (let i = 0; i < req.files.length; i += BATCH_SIZE) {
       const batch = req.files.slice(i, i + BATCH_SIZE);
       
       const batchPromises = batch.map(async (file, batchIndex) => {
         const globalIndex = i + batchIndex;
         const caption = captions[globalIndex] || '';
-        
+
         // Debug: Log filename and caption for troubleshooting
         if (globalIndex < 5) { // Only log first 5 to avoid spam
           console.log(`File ${globalIndex}: ${file.originalname}, Caption: "${caption}"`);
         }
-
-        const newImage = new ImageModel({
-          filename: file.originalname,
-          data: file.buffer,
-          contentType: file.mimetype,
-          caption: caption.trim() // Trim whitespace
-        });
-
-        return await newImage.save();
-      });
-
+        // Save image to DB
+        if (projectName){ // save as Project to new DB
+          const newImage = new ImageModel({
+            projectName: file.projectName,
+            filename: file.originalname,
+            data: file.buffer,
+            contentType: file.mimetype,
+            caption: caption.trim() // Trim whitespace
+          });
+          
+          
+        } else { // save as temporary Image
+          const newImage = new ImageModel({
+            filename: file.originalname,
+            data: file.buffer,
+            contentType: file.mimetype,
+            caption: caption.trim() // Trim whitespace
+          });
+          
+          return await newImage.save();
+        };
+      })
       const batchResults = await Promise.all(batchPromises);
       savedImages.push(...batchResults);
       
@@ -158,17 +180,25 @@ app.post('/api/upload', upload.array('images', 300), async (req, res) => {
       res.status(500).json({ message: 'Failed to upload images', error: error.message });
     }
   }
+};
+
+// --- Routes ---
+
+// Upload images
+app.post('/api/upload', upload.array('images', 300), async (req, res) => {
+  processUpload(req, res);
 });
-
-// Add middleware to handle larger payloads if needed
-app.use('/api/upload', express.raw({ 
-  limit: '200mb', // Increase limit for upload endpoint specifically
-  type: 'multipart/form-data'
-}));
-
-
-
-
+app.post('/api/saveProject', upload.array('images', 300), async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name) {
+      return res.status(400).json({ message: 'Project name is required' });
+    }
+    await processUpload(req, res);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to save project', error: error.message });
+  }
+})
 
 
 // Get all images (metadata only, not buffer)
@@ -229,10 +259,8 @@ app.delete('/api/images', async (req, res) => {
   }
 });
 
-// Serve frontend
-app.use(express.static('public'));
+
 
 app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
 });
-
