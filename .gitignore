@@ -1,5 +1,6 @@
 # Dependency directory
 node_modules/
+venv/
 
 # Log files
 npm-debug.log*

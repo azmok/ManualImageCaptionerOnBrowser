@@ -111,6 +111,14 @@
         input#insert:checked ~ .insertIfAbsence{
             display: inline-block;
         }
+
+        /* toggle show/hide elements*/
+        .insert_position{
+            display: none;
+        }
+        .insert_position.show{
+            display: block;
+        }
         
     </style>
 </head>
@@ -120,41 +128,41 @@
         <div class="foo-box foo">
             This is an example text. We want to insert a word after "example".
         </div>
-        <div class="choice_replace_insert">
-            <h3>Insert/Replace</h3>
-            <div class="radio-group">
-                <label for="replace">Replace</label><input type="radio" name="replaceType" id="replace" value="replace"></lable>
-                <label for="insert">Insert</label><input type="radio" name="replaceType" id="insert"></lable>
-
-                <input type="checkbox" id="insertIfAbsence" class="insertIfAbsence">
-                <label for="insertIfAbsence" class="insertIfAbsence">If Absent</label>
-            </div>
-        <div>
-        <div class="input-group">
-            <h3>Search type:</h3>
-            <div class="radio-group">
-                <label for="searchType1"><input type="radio" name="searchType" id="searchType1" value="text">Text</label>
-                <label for="searchType2"><input type="radio" name="searchType" id="searchType2" value="regex" checked> Regex Search</label>
-            </div>
-        </div>
-        <div class="input-group">
-            <label for="input1" id="input1Lable">2. Text to search:</label>
-            <input type="text" id="input1" placeholder="e.g., 'new word'">
-        </div>
-        <div class="insertionPosition">
-            <div class="input-group">
-                <label>Insertion position:</label>
+        <div id="user-input-panel">
+            <div class="choice_replace_insert">
+                <h3>Insert/Replace</h3>
                 <div class="radio-group">
-                    <label for="position1"><input type="radio" name="position" id="position1" value="prepend" checked> Prepend</label>
-                    <label for="position2"><input type="radio" name="position" id="position2" value="append"> Append</label>
+                    <label for="choice_replace">Replace</label><input type="radio" name="replaceType" id="choice_replace" value="replace"></lable>
+                    <label for="choice_insert">Insert</label><input type="radio" name="replaceType" id="choice_insert"></lable>
+
+                    <input type="checkbox" id="insertIfAbsence" class="insertIfAbsence">
+                    <label for="insertIfAbsence" class="insertIfAbsence">If Absent</label>
+                </div>
+            <div>
+            <div class="input-group serach_type">
+                <h3>Search type:</h3>
+                <div class="radio-group">
+                    <label for="searchType1"><input type="radio" name="searchType" id="searchType1" value="text">Text</label>
+                    <label for="searchType2"><input type="radio" name="searchType" id="searchType2" value="regex" checked> Regex Search</label>
                 </div>
             </div>
-            <div class="input-group">
-                <label for="input2">Regex: insertion point:</label>
-                <input type="text" id="input2" placeholder="e.g., '(example)'">
+            <div class="input-group text_to_search">
+                <label for="input1" id="input1Lable">1. Text to search:</label>
+                <input type="text" id="input1" placeholder="">
             </div>
+            <div class="input-group insert_position show" id="insertPositionPanel">
+                <label>Insertion position:</label>
+                <div class="radio-group">
+                    <label for="insert_prepend"><input type="radio" name="position" id="insert_prepend" value="prepend" checked> Prepend</label>
+                    <label for="insert_append"><input type="radio" name="position" id="insert_append" value="append"> Append</label>
+                </div>
+            </div>
+            <div class="input-group text_to_insert">
+                <label for="input2" id="input2Lable">2. Text to Insert</label>
+                <input type="text" id="input2" placeholder="">
+            </div>
+            <button id="runButton">run</button>
         </div>
-        <button id="runButton">run</button>
     </div>
     <script>
 document.addEventListener('DOMContentLoaded', () => {
@@ -162,33 +170,44 @@ document.addEventListener('DOMContentLoaded', () => {
     const input1 = document.getElementById('input1');
     const input1Label = document.getElementById('input1Lable');
     const input2 = document.getElementById('input2');
+    const input2Label = document.getElementById('input2Lable');
     const fooElement = document.querySelector('.foo');
 
 
 
     // hide/show for replace/insert choice
-    const replaceRadio = document.getElementById('replace');
-    const insertRadio = document.getElementById('insert');
+    const replaceRadio = document.getElementById('choice_replace');
+    const insertRadio = document.getElementById('choice_insert');
+    const insertPositionPanel = document.getElementById('insertPositionPanel');
 
     // Show replace Panel
     replaceRadio.addEventListener('change', (e) => {
         if (e.target.checked) {
-            document.querySelector('.insertionPosition').style.display = 'none';
-            console.log( input1Label.textContent )
-            newTxt = input1Label.textContent.replace('search', 'Replace')
-            console.log( newTxt )
-            input1Label.textContent = newTxt;
+            // document.querySelector('.insertionPosition').style.display = 'none';
+            
+            newTxt1 = input1Label.textContent.replace('search', 'Replace')
+            newTxt2 = input2Label.textContent.replace('Insert', 'Replace')
+            console.log( newTxt1, newTxt2 )
+            input1Label.textContent = newTxt1;
+            input2Label.textContent = newTxt2;
+            // hide/show insdertion position
+            insertPositionPanel.classList.remove('show')
+
         }
     });
 
     // Show insert Panel
     insertRadio.addEventListener('change', (e) => {
         if (e.target.checked) {
-            document.querySelector('.insertionPosition').style.display = 'block';
+            // document.querySelector('.insertionPosition').style.display = 'block';
             console.log( input1Label.textContent )
-            newTxt = input1Label.textContent.replace('Replace', 'search')
-            console.log( newTxt )
-            input1Label.textContent = newTxt;
+            newTxt1 = input1Label.textContent.replace('Replace', 'Search')
+            newTxt2 = input2Label.textContent.replace('Replace', 'Insert')
+            console.log( newTxt1, newTxt2 )
+            input1Label.textContent = newTxt1;
+            input2Label.textContent = newTxt2;
+            // hide/show insdertion position
+            insertPositionPanel.classList.add('show')
         }
     });
 
