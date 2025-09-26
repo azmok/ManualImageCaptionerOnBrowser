@@ -66,319 +66,55 @@ class ImageCaptioner {
         }
     }
 
-    // Update the showUploadProgress method to show file count
-    showUploadProgress(loaded, total, currentFile, currentFileIndex, totalFiles) {
-        const progressContainer = document.getElementById('uploadProgressContainer');
-        const progressBar = document.getElementById('uploadProgressBar');
-        const progressText = document.getElementById('uploadProgressText');
-        const fileInfo = document.getElementById('uploadFileInfo');
+    async handleFileUpload(files) {
+        const formData = new FormData();
+        const filesArray = Array.from(files);
+        const imageFiles = filesArray.filter(f => f.type.startsWith('image/'));
+        const captionFiles = filesArray.filter(f => f.name.endsWith('.txt'));
+        const captionsMap = new Map();
+        const captionPromises = [];
 
-        if (progressContainer) {
-            progressContainer.style.display = 'block';
+        if (imageFiles.length === 0) {
+            this.showNotification('No images were uploaded.', 'error');
+            return;
         }
 
-        const percentage = total > 0 ? Math.round((loaded / total) * 100) : 0;
-        
-        if (progressBar) {
-            progressBar.style.width = `${percentage}%`;
-        }
-        
-        if (progressText) {
-            progressText.textContent = `${percentage}%`;
-        }
-        
-        if (fileInfo) {
-            if (currentFileIndex !== undefined && totalFiles !== undefined) {
-                fileInfo.textContent = `File ${currentFileIndex + 1} of ${totalFiles}: ${currentFile}`;
-            } else {
-                fileInfo.textContent = currentFile;
-            }
-        }
-    }
-
-    hideUploadProgress() {
-        const progressContainer = document.getElementById('uploadProgressContainer');
-        if (progressContainer) {
-            progressContainer.style.display = 'none';
-        }
-        
-        // Reset progress bar
-        const progressBar = document.getElementById('uploadProgressBar');
-        const progressText = document.getElementById('uploadProgressText');
-        const fileInfo = document.getElementById('uploadFileInfo');
-        
-        if (progressBar) progressBar.style.width = '0%';
-        if (progressText) progressText.textContent = '0%';
-        if (fileInfo) fileInfo.textContent = '';
-    }
-
-    // Complete client-side upload methods - replace the existing methods in your main.js
-
-async handleFileUpload(files, projectName='') {
-    const filesArray = Array.from(files);
-    const imageFiles = filesArray.filter(f => f.type.startsWith('image/'));
-    const captionFiles = filesArray.filter(f => f.name.endsWith('.txt'));
-    const captionsMap = new Map();
-
-    
-    // console.log( ` in handleFileUpload` )
-
-    if (imageFiles.length === 0) {
-        this.showNotification('No images were uploaded.', 'error');
-        return;
-    }
-
-    // Process caption files first
-    for (const file of captionFiles) {
-        const text = await file.text();
-        const baseName = file.name.replace(/\.txt$/, '');
-        captionsMap.set(baseName, text.trim()); // Ensure we trim the caption
-    }
-
-    console.log(`Found ${captionFiles.length} caption files`);
-    console.log(`Caption map size: ${captionsMap.size}`);
-    
-    // Debug: Log first few caption mappings
-    let debugCount = 0;
-    for (let [key, value] of captionsMap) {
-        if (debugCount < 3) {
-            console.log(`Caption mapping: "${key}" -> "${value}"`);
-            debugCount++;
-        }
-    }
-
-    // Determine if we need to chunk the upload
-    const CHUNK_SIZE = 50;
-    const shouldChunk = imageFiles.length > CHUNK_SIZE;
-
-    if (shouldChunk) {
-        await this.handleChunkedUpload(imageFiles, captionsMap, CHUNK_SIZE);
-    } else {
-        await this.handleSingleUpload(imageFiles, captionsMap);
-    }
-}
-
-async handleChunkedUpload(imageFiles, captionsMap, chunkSize, projectName='') {
-    const totalFiles = imageFiles.length;
-    const chunks = [];
-    
-    // Create chunks
-    for (let i = 0; i < totalFiles; i += chunkSize) {
-        chunks.push(imageFiles.slice(i, i + chunkSize));
-    }
-
-    this.showNotification(`Uploading ${totalFiles} images in ${chunks.length} batches...`, 'info');
-    console.log(`Starting chunked upload: ${chunks.length} chunks of up to ${chunkSize} files each`);
-
-    try {
-        let totalCaptionedImages = 0;
-        
-        for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
-            const chunk = chunks[chunkIndex];
-            const startIndex = chunkIndex * chunkSize;
-            
-            // Show progress for current chunk
-            this.showUploadProgress(
-                startIndex, 
-                totalFiles, 
-                `Batch ${chunkIndex + 1}/${chunks.length}`,
-                startIndex,
-                totalFiles
-            );
-
-            const response = await this.uploadChunk(chunk, captionsMap, chunkIndex + 1, chunks.length);
-            
-            // Track captioned images if response includes the count
-            if (response && response.captionedCount !== undefined) {
-                totalCaptionedImages += response.captionedCount;
-            }
-            
-            // Brief pause between chunks to prevent overwhelming the server
-            if (chunkIndex < chunks.length - 1) {
-                await new Promise(resolve => setTimeout(resolve, 500));
-            }
-        }
-
-        this.showNotification(
-            `Successfully uploaded ${totalFiles} images${totalCaptionedImages > 0 ? ` (${totalCaptionedImages} with captions)` : ''}!`, 
-            'success'
-        );
-        await this.loadImages();
-    } catch (error) {
-        this.showNotification(`Upload failed: ${error.message}`, 'error');
-        console.error('Chunked upload error:', error);
-    } finally {
-        this.hideUploadProgress();
-    }
-}
-
-async uploadChunk(imageFiles, captionsMap, chunkNumber, totalChunks) {
-    const formData = new FormData();
-    
-
-    console.log( `@@@@@@@@@@@@@@ uploadChunk` )
-    
-    // console.log(`Preparing chunk ${chunkNumber} with ${imageFiles.length} files`);
-    
-    // Build arrays to maintain order
-    const chunkCaptions = [];
-    
-    for (let i = 0; i < imageFiles.length; i++) {
-        const file = imageFiles[i];
-        const baseName = file.name.replace(/\.[^.]+$/, ''); // Remove extension
-        const caption = captionsMap.get(baseName) || '';
-
-
-         console.log( `@@@@@@caption@@@@@@ ${caption} @@@@@@@@@@` )
-        
-        
-         // Debug: Log first few files in each chunk
-        if (i < 3) {
-            console.log(`Chunk ${chunkNumber}, File ${i}: "${file.name}" -> baseName: "${baseName}" -> caption: "${caption}"`);
-        }
-        
-        formData.append('images', file);
-        chunkCaptions.push(caption);
-    }
-    
-    // Append all captions to FormData
-    chunkCaptions.forEach(caption => {
-        formData.append('captions', caption);
-    });
-    
-    console.log(`Chunk ${chunkNumber}: ${imageFiles.length} images, ${chunkCaptions.length} captions`);
-
-    return new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-
-        xhr.upload.addEventListener('progress', (e) => {
-            if (e.lengthComputable) {
-                this.showUploadProgress(
-                    e.loaded, 
-                    e.total, 
-                    `Batch ${chunkNumber}/${totalChunks}`,
-                    chunkNumber - 1,
-                    totalChunks
-                );
-            }
-        });
-
-        xhr.addEventListener('load', () => {
-            if (xhr.status >= 200 && xhr.status < 300) {
-                try {
-                    const response = JSON.parse(xhr.responseText);
-                    console.log(`Chunk ${chunkNumber} response:`, response);
-                    resolve(response);
-                } catch (parseError) {
-                    console.log(`Chunk ${chunkNumber} completed (couldn't parse response)`);
-                    resolve({ captionedCount: 0 }); // Return default object
-                }
-            } else {
-                reject(new Error(`Batch ${chunkNumber} failed with status ${xhr.status}`));
-            }
-        });
-
-        xhr.addEventListener('error', () => {
-            reject(new Error(`Network error in batch ${chunkNumber}`));
-        });
-
-        xhr.addEventListener('timeout', () => {
-            reject(new Error(`Timeout in batch ${chunkNumber}`));
-        });
-
-        xhr.timeout = 300000; // 5 minutes
-        xhr.open('POST', '/api/upload');
-        xhr.send(formData);
-    });
-}
-
-async handleSingleUpload(imageFiles, captionsMap) {
-    const formData = new FormData();
-    const allCaptions = [];
-    
-    console.log(`Preparing single upload with ${imageFiles.length} files`);
-    
-    for (let i = 0; i < imageFiles.length; i++) {
-        const file = imageFiles[i];
-        const baseName = file.name.replace(/\.[^.]+$/, '');
-        const caption = captionsMap.get(baseName) || '';
-        
-        // Debug: Log first few files
-        if (i < 5) {
-            console.log(`File ${i}: "${file.name}" -> baseName: "${baseName}" -> caption: "${caption}"`);
-        }
-        
-        formData.append('images', file);
-        allCaptions.push(caption);
-    }
-    
-    // Append all captions
-    allCaptions.forEach(caption => {
-        formData.append('captions', caption);
-    });
-    
-    console.log(`Single upload: ${imageFiles.length} images, ${allCaptions.length} captions`);
-
-    return new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-
-        xhr.upload.addEventListener('progress', (e) => {
-            if (e.lengthComputable) {
-                this.showUploadProgress(e.loaded, e.total, 'Uploading...');
-            }
-        });
-
-        xhr.addEventListener('load', async () => {
-            if (xhr.status >= 200 && xhr.status < 300) {
-                try {
-                    const response = JSON.parse(xhr.responseText);
-                    console.log('Upload response:', response);
-                    
-                    if (response.captionedCount !== undefined) {
-                        this.showNotification(
-                            `Upload complete! ${response.count} images uploaded, ${response.captionedCount} with captions. Refreshing gallery...`, 
-                            'success'
-                        );
-                    } else {
-                        this.showNotification('Upload complete! Refreshing gallery...', 'success');
-                    }
-                    
-                    await this.loadImages();
-                    resolve(response);
-                } catch (parseError) {
-                    console.error('Response parsing error:', parseError);
-                    this.showNotification('Upload completed! Refreshing gallery...', 'success');
-                    await this.loadImages();
+        captionFiles.forEach(file => {
+            const reader = new FileReader();
+            const promise = new Promise(resolve => {
+                reader.onload = (e) => {
+                    const baseName = file.name.replace(/\.txt$/, '');
+                    captionsMap.set(baseName, e.target.result);
                     resolve();
-                }
-            } else {
-                this.showNotification('Upload failed', 'error');
-                reject(new Error('Upload failed'));
-            }
-            this.hideUploadProgress();
+                };
+                reader.readAsText(file);
+            });
+            captionPromises.push(promise);
         });
 
-        xhr.addEventListener('error', () => {
-            this.showNotification('Upload failed', 'error');
-            this.hideUploadProgress();
-            reject(new Error('Upload failed'));
-        });
+        await Promise.all(captionPromises);
 
-        xhr.addEventListener('abort', () => {
-            this.showNotification('Upload cancelled', 'info');
-            this.hideUploadProgress();
-            reject(new Error('Upload cancelled'));
-        });
+        for (const file of imageFiles) {
+            const baseName = file.name.replace(/\.[^.]+$/, '');
+            const caption = captionsMap.get(baseName) || '';
+            formData.append('images', file);
+            formData.append('captions', caption);
+        }
 
-        xhr.timeout = 600000; // 10 minutes
-        xhr.open('POST', '/api/upload');
-        xhr.send(formData);
-    });
-}
+        try {
+            const response = await fetch('/api/upload', {
+                method: 'POST',
+                body: formData,
+            });
+            if (!response.ok) throw new Error('Upload failed');
 
-
-
-
+            this.showNotification('Upload complete! Refreshing gallery...', 'success');
+            await this.loadImages();
+        } catch (error) {
+            console.error(error);
+            this.showNotification('Failed to upload files', 'error');
+        }
+    }
 
     async updateCaption(imageId, caption) {
         try {
@@ -417,7 +153,7 @@ async handleSingleUpload(imageFiles, captionsMap) {
 
 
     async clearAll() {
-        // console.log('clear all button clicked')
+        console.log( 'clear all button clicked')
         if (this.images.length === 0) return;
         if (!confirm('Are you sure you want to clear all images and captions? This cannot be undone.')) {
             return;
@@ -544,7 +280,7 @@ async handleSingleUpload(imageFiles, captionsMap) {
             `;
 
             const textarea = card.querySelector('.caption-area');
-            textarea.addEventListener('blur', (e) => {
+            textarea.addEventListener('input', (e) => {
                 this.updateCaption(image._id, e.target.value);
                 card.querySelector('.char-count span').textContent = e.target.value.length;
                 this.updateAllTagsWithCounts();
@@ -620,7 +356,7 @@ async handleSingleUpload(imageFiles, captionsMap) {
         const list = document.getElementById('captionList');
         list.innerHTML = '';
         const allTags = Array.from(this.allTagsWithCounts, ([tag, count]) => ({ tag, count }));
-
+        
         allTags.sort((a, b) => {
             const countDifference = b.count - a.count;
             if (countDifference !== 0) {
@@ -692,17 +428,18 @@ async handleSingleUpload(imageFiles, captionsMap) {
             list.appendChild(li);
         });
 
+        this.addSearchReplacePanel();
         this.addBulkPanel();
         this.addAppendPrependPanel();
         this.addDeletePanel();
     }
-
+    
     async deleteTagFromAllCaptions(tagToDelete) {
         if (!confirm(`Are you sure you want to delete "${tagToDelete}" from all captions? This cannot be undone.`)) {
             this.showNotification('Tag deletion cancelled.', 'info');
             return;
         }
-
+        
         const updates = [];
         this.images.forEach(img => {
             let tags = img.caption ? img.caption.split(',').map(s => s.trim()) : [];
@@ -751,7 +488,7 @@ async handleSingleUpload(imageFiles, captionsMap) {
             this.showNotification('Caption application cancelled.', 'info');
             return;
         }
-
+        
         const updates = [];
         for (const image of this.images) {
             const existingCaption = image.caption ? image.caption.trim() : '';
@@ -773,17 +510,17 @@ async handleSingleUpload(imageFiles, captionsMap) {
     }
 
     async findAndModifyCaptions(operation) {
-        const targetTextInput = operation === 'delete'
-            ? document.getElementById('targetTextInputDelete')
+        const targetTextInput = operation === 'delete' 
+            ? document.getElementById('targetTextInputDelete') 
             : document.getElementById('targetTextInput');
-
+        
         const newTagInput = document.getElementById('newTagInput');
         const regexRadio = document.getElementById('regexRadio');
         const prependRadio = document.getElementById('prependRadio');
-
+        
         const targetText = targetTextInput.value;
         const newTag = newTagInput ? newTagInput.value.trim() : '';
-        const useRegex = operation === 'delete'
+        const useRegex = operation === 'delete' 
             ? document.getElementById('regexRadioDelete').checked
             : regexRadio.checked;
 
@@ -825,7 +562,7 @@ async handleSingleUpload(imageFiles, captionsMap) {
             this.showNotification('Caption modification cancelled.', 'info');
             return;
         }
-
+        
         const updates = [];
         imagesToModify.forEach(img => {
             let newCaption = img.caption;
@@ -870,6 +607,86 @@ async handleSingleUpload(imageFiles, captionsMap) {
 
         await Promise.all(updates);
         this.showNotification(`Modified captions for ${updates.length} image${updates.length === 1 ? '' : 's'}`, 'success');
+    }
+
+    async searchAndReplaceInCaptions() {
+        const searchInput = document.getElementById('searchReplaceSearchInput');
+        const replaceInput = document.getElementById('searchReplaceReplaceInput');
+        const regexCheckbox = document.getElementById('searchReplaceRegex');
+        const caseSensitiveCheckbox = document.getElementById('searchReplaceCaseSensitive');
+
+        const searchText = searchInput.value;
+        const replaceText = replaceInput.value;
+        const useRegex = regexCheckbox.checked;
+        const caseSensitive = caseSensitiveCheckbox.checked;
+
+        if (!searchText) {
+            this.showNotification('Search text is required.', 'error');
+            return;
+        }
+
+        let searchPattern;
+        if (useRegex) {
+            try {
+                const flags = caseSensitive ? 'g' : 'gi';
+                searchPattern = new RegExp(searchText, flags);
+            } catch (e) {
+                this.showNotification(`Invalid regular expression: ${e.message}`, 'error');
+                return;
+            }
+        } else {
+            const escapedSearchText = searchText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const flags = caseSensitive ? 'g' : 'gi';
+            searchPattern = new RegExp(escapedSearchText, flags);
+        }
+
+        // Find images that contain the search text
+        const imagesToModify = this.images.filter(img => {
+            return img.caption && searchPattern.test(img.caption);
+        });
+
+        if (imagesToModify.length === 0) {
+            this.showNotification('No captions found containing the search text.', 'info');
+            return;
+        }
+
+        // Show confirmation dialog
+        const searchDisplayText = searchText.length > 50 ? searchText.substring(0, 50) + '...' : searchText;
+        const replaceDisplayText = replaceText.length > 50 ? replaceText.substring(0, 50) + '...' : replaceText;
+        
+        if (!confirm(`Replace "${searchDisplayText}" with "${replaceDisplayText}" in ${imagesToModify.length} caption${imagesToModify.length === 1 ? '' : 's'}? This cannot be undone.`)) {
+            this.showNotification('Search and replace cancelled.', 'info');
+            return;
+        }
+
+        // Perform the replacements
+        const updates = [];
+        let totalReplacements = 0;
+
+        imagesToModify.forEach(img => {
+            const originalCaption = img.caption;
+            const newCaption = originalCaption.replace(searchPattern, replaceText);
+            
+            if (originalCaption !== newCaption) {
+                // Count how many replacements were made in this caption
+                const matches = originalCaption.match(searchPattern);
+                if (matches) {
+                    totalReplacements += matches.length;
+                }
+                updates.push(this.updateCaption(img._id, newCaption));
+            }
+        });
+
+        if (updates.length > 0) {
+            await Promise.all(updates);
+            this.showNotification(`Replaced ${totalReplacements} occurrence${totalReplacements === 1 ? '' : 's'} in ${updates.length} caption${updates.length === 1 ? '' : 's'}.`, 'success');
+            
+            // Clear the form
+            searchInput.value = '';
+            replaceInput.value = '';
+        } else {
+            this.showNotification('No replacements were made.', 'info');
+        }
     }
 
     selectCaptionTag(text) {
@@ -934,6 +751,44 @@ async handleSingleUpload(imageFiles, captionsMap) {
         this.focusMatch(textToHighlight);
     }
 
+    addSearchReplacePanel() {
+        const sidePanel = document.getElementById('sidePanel');
+        let searchReplacePanel = sidePanel.querySelector('.search-replace-panel');
+        
+        if (this.images.length > 0) {
+            if (!searchReplacePanel) {
+                searchReplacePanel = document.createElement('div');
+                searchReplacePanel.className = 'search-replace-panel';
+                searchReplacePanel.innerHTML = `
+                    <h4>Search and Replace</h4>
+                    <div class="search-replace-inputs">
+                        <input type="text" id="searchReplaceSearchInput" placeholder="Search for..." class="search-replace-input">
+                        <input type="text" id="searchReplaceReplaceInput" placeholder="Replace with..." class="search-replace-input">
+                    </div>
+                    <div class="search-replace-options">
+                        <label class="search-replace-option">
+                            <input type="checkbox" id="searchReplaceRegex"> Use Regex
+                        </label>
+                        <label class="search-replace-option">
+                            <input type="checkbox" id="searchReplaceCaseSensitive"> Case Sensitive
+                        </label>
+                    </div>
+                    <button class="btn btn-primary" id="searchReplaceBtn">Replace All</button>
+                `;
+                // Insert at the top of the side panel, before other panels
+                const firstPanel = sidePanel.querySelector('.bulk-caption-panel') || 
+                                 sidePanel.querySelector('.append-prepend-panel') || 
+                                 sidePanel.querySelector('.delete-panel') ||
+                                 sidePanel.querySelector('.controls-panel');
+                sidePanel.insertBefore(searchReplacePanel, firstPanel);
+                
+                document.getElementById('searchReplaceBtn').addEventListener('click', () => this.searchAndReplaceInCaptions());
+            }
+        } else if (searchReplacePanel) {
+            searchReplacePanel.remove();
+        }
+    }
+
     addBulkPanel() {
         const sidePanel = document.getElementById('sidePanel');
         let bulkPanel = sidePanel.querySelector('.bulk-caption-panel');
@@ -946,7 +801,10 @@ async handleSingleUpload(imageFiles, captionsMap) {
                     <textarea id="bulkCaptions" placeholder="Enter a caption to append to all images..."></textarea>
                     <button class="btn btn-primary" id="applyBulkBtn">Append to All</button>
                 `;
-                sidePanel.insertBefore(bulkPanel, sidePanel.querySelector('.controls-panel'));
+                const nextPanel = sidePanel.querySelector('.append-prepend-panel') || 
+                                sidePanel.querySelector('.delete-panel') ||
+                                sidePanel.querySelector('.controls-panel');
+                sidePanel.insertBefore(bulkPanel, nextPanel);
                 document.getElementById('applyBulkBtn').addEventListener('click', () => this.appendCommonCaption());
             }
         } else if (bulkPanel) {
@@ -984,7 +842,8 @@ async handleSingleUpload(imageFiles, captionsMap) {
                     <button class="btn btn-secondary" id="addToTargetBtn">Add to Target</button>
                 `;
                 const deletePanel = sidePanel.querySelector('.delete-panel');
-                sidePanel.insertBefore(appendPrependPanel, deletePanel ? deletePanel.nextElementSibling : sidePanel.querySelector('.controls-panel'));
+                const nextPanel = deletePanel || sidePanel.querySelector('.controls-panel');
+                sidePanel.insertBefore(appendPrependPanel, nextPanel);
                 document.getElementById('addToTargetBtn').addEventListener('click', () => this.findAndModifyCaptions('add'));
             }
         } else if (appendPrependPanel) {
@@ -1019,189 +878,9 @@ async handleSingleUpload(imageFiles, captionsMap) {
             deletePanel.remove();
         }
     }
-    async saveProject(){
-        const projectName = prompt("Enter project name:","My Project" );
-        const filesArray = Array.from(files);
-        const imageFiles = filesArray.filter(f => f.type.startsWith('image/'));
-        const captionFiles = filesArray.filter(f => f.name.endsWith('.txt'));
-        const captionsMap = new Map();
-
-        // implement saving project to DB
-        
-        try{
-            if(!projectName) throw new Error('Project name is required');
-        } catch(err){
-            console.error("Error saving project:", err);
-            this.showNotification('Failed to save project.', 'error');
-        }
-
-        if (imageFiles.length === 0) {
-            this.showNotification('No images were uploaded.', 'error');
-            return;
-        }
-
-        // Process caption files first
-        for (const file of captionFiles) {
-            const text = await file.text();
-            const baseName = file.name.replace(/\.txt$/, '');
-            captionsMap.set(baseName, text.trim()); // Ensure we trim the caption
-        }
-
-        console.log(`Found ${captionFiles.length} caption files`);
-        console.log(`Caption map size: ${captionsMap.size}`);
-        
-        // Debug: Log first few caption mappings
-        let debugCount = 0;
-        for (let [key, value] of captionsMap) {
-            if (debugCount < 3) {
-                console.log(`Caption mapping: "${key}" -> "${value}"`);
-                debugCount++;
-            }
-        }
-
-        // Determine if we need to chunk the upload
-        const CHUNK_SIZE = 50;
-        const shouldChunk = imageFiles.length > CHUNK_SIZE;
-
-        if (shouldChunk) {
-            await this.handleChunkedUpload(imageFiles, captionsMap, CHUNK_SIZE, projectName);
-        } else {
-            await this.handleSingleUpload(imageFiles, captionsMap, projectName);
-        }
-
-        }
 }
 
 let captioner;
 document.addEventListener('DOMContentLoaded', () => {
     captioner = new ImageCaptioner();
-});
-
-
-// Drag to resize side panel
-const sidePanel = document.getElementById('sidePanel');
-const handle = document.getElementById('sidePanelHandle');
-let isResizing = false;
-
-handle.addEventListener('mousedown', (e) => {
-    isResizing = true;
-    document.body.style.cursor = 'ew-resize';
-});
-
-document.addEventListener('mousemove', (e) => {
-    e.preventDefault();
-    if (isResizing) {
-        const newWidth = window.innerWidth - e.clientX;
-        if (newWidth >= 200 && newWidth <= 600) { // Set min and max width
-            sidePanel.style.width = `${newWidth}px`;
-        }
-    }
-});
-
-document.addEventListener('mouseup', () => {
-    if (isResizing) {
-        isResizing = false;
-        document.body.style.cursor = 'default';
-    }
-});
-
-
-
-
-//// Menu Panel Logic
-// render settings menu
-const settingsPanelToggleBtn = document.getElementById('btn_settomgsToggle');
-const doc = document
-const renderElement = (obj)=>{
-    const tagName = obj.tagName || 'div';
-    const parentElement = obj.parentElement || doc.body;
-    const html = obj.html || '';
-    const id = obj.id ? `id="${obj.id}"` : '';
-    const className = obj.className ? `class="${obj.className}"` : '';
-    const styles = obj.styles ? `style="${obj.styles}"` : '';
-    const element = doc.createElement(tagName);
-    
-    if(id) element.setAttribute('id', obj.id);
-    if(className) element.setAttribute('class', obj.className);
-    if(styles) element.setAttribute('style', obj.styles);
-    element.innerHTML = html;
-    parentElement.appendChild(element);
-    return element;
-}
-
-const settingPanelConfig = {
-    tagName: 'div',
-    id: 'SettingsPanel',
-    className: 'settings-menu',
-    html: `
-        <h3>Settings</h3>
-        <div class="setting-item">
-            <label for="num-grid-columns">Grid Columns:</label>
-            <select name="num-grid-columns" id="num-grid-columns">
-                <option value="2">2</option>
-                <option value="3" selected>3</option>
-                <option value="4">4</option>
-                <option value="5">5</option>
-                <option value="6">6</option>
-            </select>
-        </div>
-        <div class="setting-item">
-            <label for="theme-select">Theme:</label>
-            <select name="theme-select" id="theme-select"> 
-                <option value="light">Light</option>
-                <option value="dark">Dark</option>
-                <option value="system" selected>System Default</option>
-            </select>
-        </div>`
-}
-settingsPanel = renderElement(settingPanelConfig)
-
-// toggle menu
-settingsPanelToggleBtn.addEventListener('click', ()=>{
-    console.log('settings toggle clicked')
-    settingsPanel.classList.toggle('open');
-})
-
-// handle grid column change
-document.getElementById('num-grid-columns').addEventListener('change', (e)=>{
-    const numCols = e.target.value;
-    document.getElementById('gallery').style.gridTemplateColumns = `repeat(${numCols}, 1fr)`;
-})
-
-// handle theme change
-const themeSelect = document.getElementById('theme-select');
-const applyTheme = (theme) => {
-    if(theme === 'dark'){
-        document.body.classList.add('dark-mode');
-    } else if(theme === 'light'){
-        document.body.classList.remove('dark-mode');
-    } else {
-        // system default
-        if(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches){
-            document.body.classList.add('dark-mode');
-        } else {
-            document.body.classList.remove('dark-mode');
-        }
-    }
-}
-
-themeSelect.addEventListener('change', (e)=>{
-    const theme = e.target.value;
-    localStorage.setItem('preferredTheme', theme);
-    applyTheme(theme);
-})
-
-// apply saved theme on load
-document.addEventListener('DOMContentLoaded', ()=>{
-    const savedTheme = localStorage.getItem('preferredTheme') || 'system';
-    themeSelect.value = savedTheme;
-    applyTheme(savedTheme);
-})
-
-// listen to system theme changes
-window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
-    const savedTheme = localStorage.getItem('preferredTheme') || 'system';
-    if(savedTheme === 'system'){
-        applyTheme('system');
-    }
 });
