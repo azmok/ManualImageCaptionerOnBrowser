@@ -28,7 +28,8 @@ body {
 
 .dark-mode {
   background: var(--dark-bg-color) !important;
-  color: vasr(--dark-txt-color) !important;;
+  color: vasr(--dark-txt-color) !important;
+  ;
 }
 
 
@@ -220,7 +221,7 @@ body {
   background: rgba(255, 255, 255, 0.8);
   font-size: 0.87rem;
   font-weight: 500;
-  font-family:  "Sarabun", "Roboto Flex";
+  font-family: "Sarabun", "Roboto Flex";
   line-height: 1.1;
   letter-spacing: 1.1;
 }
@@ -310,7 +311,8 @@ body {
   max-height: calc(100vh - 40px);
   overflow-y: auto;
 }
-#sidePanelHandle{
+
+#sidePanelHandle {
   width: 5px;
   height: 40px;
   background: linear-gradient(135deg, #babcc4, #a9b1aa);
@@ -567,7 +569,8 @@ body {
   #gallery {
     grid-template-columns: repeat(3, 1fr);
   }
-  #sidePanel{
+
+  #sidePanel {
     width: 380px;
   }
 }
@@ -635,12 +638,13 @@ body {
 
 
 /* Add visible border for side panel buttons and image-card actions */
-.image-card{
+.image-card {
   border: 2px solid #c2cedb;
   /* blue border for visibility */
 }
-#sidePanel .btn{
-    border-color: #b3b3b3
+
+#sidePanel .btn {
+  border-color: #b3b3b3
 }
 
 /* Optional: Add hover effect to emphasize border */
@@ -697,11 +701,11 @@ body {
   border: 1px rgb(195, 195, 195) solid;
 }
 
-::placeholder{
-    opacity: 0.5;
-    font-family: monospace;
-    letter-spacing: -0.3px;
-    font-size: 0.7rem;
+::placeholder {
+  opacity: 0.5;
+  font-family: monospace;
+  letter-spacing: -0.3px;
+  font-size: 0.7rem;
 }
 
 /* inline display for button element in sidePanel */
@@ -714,73 +718,78 @@ body {
 #deleteTargetBtn,
 #targetTextInputReplace,
 #newTagInputReplace,
-#replaceTargetBtn{
-    display: inline-block;
-    vertical-align: middle; /* Aligns elements vertically in the middle */
-    margin: 0; /* Remove default margins for consistency */
-    padding: 8px; /* Consistent padding */
-    box-sizing: border-box;
+#replaceTargetBtn {
+  display: inline-block;
+  vertical-align: middle;
+  /* Aligns elements vertically in the middle */
+  margin: 0;
+  /* Remove default margins for consistency */
+  padding: 8px;
+  /* Consistent padding */
+  box-sizing: border-box;
 }
 
 .bulk-caption-panel,
 .append-prepend-panel,
-.delete-panel{
-    margin-top: 1.5rem;
+.delete-panel {
+  margin-top: 1.5rem;
 }
-h4{
-    font-size: 1.5rem;
+
+h4 {
+  font-size: 1.5rem;
 }
-.radio-group-wrapper{
-    display: grid;
-    grid-template-columns: max-content max-content;
-    column-gap: 2rem;
+
+.radio-group-wrapper {
+  display: grid;
+  grid-template-columns: max-content max-content;
+  column-gap: 2rem;
 }
 
 /* Progress bar */
 .progress-container {
-    position: fixed;
-    top: 0;
-    width: 100%;
-    margin: 15px 0;
-    text-align: center;
-    opacity: 1;
-    z-index:9999;
+  position: fixed;
+  top: 0;
+  width: 100%;
+  margin: 15px 0;
+  text-align: center;
+  opacity: 1;
+  z-index: 9999;
 }
 
 .progress-bar {
-    width: 100%;
-    height: 20px;
-    background-color: #f0f0f0;
-    border-radius: 10px;
-    overflow: hidden;
-    margin-bottom: 8px;
+  width: 100%;
+  height: 20px;
+  background-color: #f0f0f0;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 8px;
 }
 
 .progress-fill {
-    height: 100%;
-    background: linear-gradient(90deg, #3064a8, #99e09c);
-    width: 0%;
-    transition: width 0.3s ease;
+  height: 100%;
+  background: linear-gradient(90deg, #3064a8, #99e09c);
+  width: 0%;
+  transition: width 0.3s ease;
 }
 
 .progress-text {
-    font-size: 14px;
-    font-weight: bold;
-    color: #333;
-    margin-bottom: 5px;
+  font-size: 14px;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 5px;
 }
 
 .file-info {
-    font-size: 12px;
-    color: #666;
+  font-size: 12px;
+  color: #666;
 }
 
 .upload-stats {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 10px;
-    font-size: 12px;
-    color: #666;
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+  font-size: 12px;
+  color: #666;
 }
 
 
@@ -797,30 +806,147 @@ h4{
   color: #222;
   width: auto;
   z-index: 9999;
-  user-select: none !important  ;
+  user-select: none !important;
 }
-#SettingsPanel{
+
+#SettingsPanel {
   position: fixed;
-  top:0;
+  top: 0;
   left: 0;
   width: 200px;
   height: 100%;
-  
+
   border-radius: 8px;
   padding: 15px;
   z-index: 1000;
   transform: translateX(-300px);
   transition: all 0.3s ease;
   /* From https://css.glass */
-  color:rgb(134, 138, 122);
+  color: rgb(134, 138, 122);
   border: 1px solid rgba(255, 255, 255, 0.77);
   background: linear-gradient(135deg, rgb(184, 204, 151) 0%, rgb(166, 194, 173) 100%);
   border-radius: 16px;
   box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(9.4px);
   -webkit-backdrop-filter: blur(9.4px);
-  
+
 }
-#SettingsPanel.open{
+
+#SettingsPanel.open {
   transform: translateX(0px);
+}
+
+
+.search-replace-panel {
+  background-color: #fff;
+  padding: 30px;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 600px;
+}
+
+.search-replace-panel h1 {
+  text-align: center;
+  color: #1a237e;
+  margin-bottom: 30px;
+}
+
+.input-group {
+  margin-bottom: 15px;
+}
+
+.input-group h3 {
+  margin-bottom: 10px;
+  color: #1a237e;
+  font-size: 1.1em;
+}
+
+.input-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+}
+
+.input-group input[type="text"] {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 1em;
+  box-sizing: border-box;
+}
+
+.input-group input[type="text"]:focus {
+  outline: none;
+  border-color: #5c6bc0;
+  box-shadow: 0 0 0 2px rgba(92, 107, 192, 0.2);
+}
+
+.search-replace-panel button {
+  width: 100%;
+  padding: 12px;
+  background-color: #3f51b5;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 1.1em;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  margin-top: 20px;
+}
+
+.search-replace-panel button:hover {
+  background-color: #303f9f;
+}
+
+.radio-group {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+
+.radio-group label {
+  font-weight: normal;
+  color: #555;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.radio-group input[type="radio"],
+.radio-group input[type="checkbox"] {
+  margin: 0;
+}
+
+.choice_replace_insert>input,
+.choice_replace_insert>label {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.choice_replace_insert>label {
+  font-size: 0.9em;
+}
+
+.search-replace-panel input#insertIfAbsence {
+  margin-left: 8px;
+  transform: scale(1.2);
+}
+
+.search-replace-panel .insertIfAbsence {
+  display: none;
+}
+
+.search-replace-panel input#choice_insert:checked~.insertIfAbsence {
+  display: inline-block;
+}
+
+/* toggle show/hide elements*/
+.search-replace-panel .insert_position {
+  display: none;
+}
+
+.search-replace-panel .insert_position.show {
+  display: block;
 }

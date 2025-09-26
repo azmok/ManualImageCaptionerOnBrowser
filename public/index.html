@@ -19,7 +19,7 @@
       <div id="uploadFileInfo" class="file-info"></div>
    </div>
 
-   
+
    <div class="app-container">
 
       <div class="main-content">
@@ -61,6 +61,67 @@
             <button id="downloadDatasetBtn" class="btn btn-success">📦Download Dataset</button>
             <button id="autoSaveBtn" class="btn btn-secondary">Save Progress</button>
          </div>
+         <div class="search-replace-panel">
+            <h1>Text Manipulation Tool</h1>
+
+            <div id="user-input-panel">
+               <div class="choice_replace_insert">
+                  <h3>Insert/Replace</h3>
+                  <div class="radio-group">
+                     <label for="choice_replace">
+                        <input type="radio" name="replaceType" id="choice_replace" value="replace">
+                        Replace
+                     </label>
+                     <label for="choice_insert">
+                        <input type="radio" name="replaceType" id="choice_insert" value="insert" checked>
+                        Insert
+                     </label>
+                     <input type="checkbox" id="insertIfAbsence" class="insertIfAbsence">
+                     <label for="insertIfAbsence" class="insertIfAbsence">If Absent</label>
+                  </div>
+               </div>
+
+               <div class="input-group search_type">
+                  <h3>Search type:</h3>
+                  <div class="radio-group">
+                     <label for="searchType1">
+                        <input type="radio" name="searchType" id="searchType1" value="text">
+                        Text
+                     </label>
+                     <label for="searchType2">
+                        <input type="radio" name="searchType" id="searchType2" value="regex" checked>
+                        Regex Search
+                     </label>
+                  </div>
+               </div>
+
+               <div class="input-group text_to_search">
+                  <label for="input1" id="input1Label">1. Text to search:</label>
+                  <input type="text" id="input1" placeholder="Enter text or regex pattern">
+               </div>
+
+               <div class="input-group insert_position show" id="insertPositionPanel">
+                  <label>Insertion position:</label>
+                  <div class="radio-group">
+                     <label for="insert_prepend">
+                        <input type="radio" name="position" id="insert_prepend" value="prepend" checked>
+                        Before (Prepend)
+                     </label>
+                     <label for="insert_append">
+                        <input type="radio" name="position" id="insert_append" value="append">
+                        After (Append)
+                     </label>
+                  </div>
+               </div>
+
+               <div class="input-group text_to_insert">
+                  <label for="input2" id="input2Label">2. Text to Insert:</label>
+                  <input type="text" id="input2" placeholder="Enter text to insert/replace">
+               </div>
+
+               <button id="runButton">Apply Changes</button>
+            </div>
+         </div>
       </aside>
    </div>
    <div id="notification" class="notification"></div>
@@ -75,8 +136,8 @@
 
    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
-   <script src="js/main.js"></script>
+   <script type='module' src="js/main.js"></script>
+   <script type='module' src="js/replace_panel.js"></script>
 </body>
 
 </html>
-

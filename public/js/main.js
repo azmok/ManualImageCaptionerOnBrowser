@@ -1075,6 +1075,11 @@ async handleSingleUpload(imageFiles, captionsMap) {
 let captioner;
 document.addEventListener('DOMContentLoaded', () => {
     captioner = new ImageCaptioner();
+
+    // apply saved theme on load
+    const savedTheme = localStorage.getItem('preferredTheme') || 'system';
+    themeSelect.value = savedTheme;
+    applyTheme(savedTheme);
 });
 
 
@@ -1154,7 +1159,7 @@ const settingPanelConfig = {
             </select>
         </div>`
 }
-settingsPanel = renderElement(settingPanelConfig)
+const settingsPanel = renderElement(settingPanelConfig)
 
 // toggle menu
 settingsPanelToggleBtn.addEventListener('click', ()=>{
@@ -1191,13 +1196,6 @@ themeSelect.addEventListener('change', (e)=>{
     applyTheme(theme);
 })
 
-// apply saved theme on load
-document.addEventListener('DOMContentLoaded', ()=>{
-    const savedTheme = localStorage.getItem('preferredTheme') || 'system';
-    themeSelect.value = savedTheme;
-    applyTheme(savedTheme);
-})
-
 // listen to system theme changes
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
     const savedTheme = localStorage.getItem('preferredTheme') || 'system';
@@ -1205,3 +1203,7 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e =
         applyTheme('system');
     }
 });
+
+export function _updateUI(caption){
+    captioner.UpdateUI(caption)
+}
