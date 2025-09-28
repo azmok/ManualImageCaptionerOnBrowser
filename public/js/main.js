@@ -929,7 +929,40 @@ class ImageCaptioner {
     }
 }
 
+// SidePanel resizing
+const sidePanelHandle = document.querySelector('#sidePanelHandle')
+const sidePanel = document.querySelector('#sidePanel')
+let isResizing = false;
+
+sidePanelHandle.addEventListener('mousedown', (e) => {
+    e.preventDefault(); 
+    document.body.style.userSelect = 'none';
+    isResizing = true;
+});
+
+document.addEventListener('mousemove', (e) => {
+    e.preventDefault()
+
+    if (isResizing) {
+        const newWidth = sidePanel.getBoundingClientRect().right - e.clientX;
+
+        sidePanel.style.width = `${newWidth}px`;
+    }
+});
+
+document.addEventListener('mouseup', () => {
+    isResizing = false;
+    // Use setTimeout(..., 0) to ensure the style reset is processed
+    // after the mouse events have fully completed, reliably re-enabling selection.
+    setTimeout(() => {
+        document.body.style.userSelect = 'auto';
+    }, 0);
+});
+
+
+
 let captioner;
 document.addEventListener('DOMContentLoaded', () => {
     captioner = new ImageCaptioner();
+    
 });
