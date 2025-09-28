@@ -117,6 +117,14 @@ class ImageCaptioner {
     }
 
     async updateCaption(imageId, caption) {
+        
+        const image = this.images.find(img => img._id === imageId);
+        if (image && image.caption === caption) {
+            // FIX: If the caption is the same, exit early to prevent unnecessary server call 
+            // and the destructive loadImages/updateUI/renderGallery cycle.
+            return;
+        }
+
         try {
             const response = await fetch(`/api/images/${imageId}`, {
                 method: 'PUT',
@@ -215,6 +223,7 @@ class ImageCaptioner {
     }
 
     updateUI() {
+        console.log('UI updated!!')
         const gallery = document.getElementById('gallery');
         const emptyState = document.getElementById('emptyState');
 
@@ -280,11 +289,30 @@ class ImageCaptioner {
             `;
 
             const textarea = card.querySelector('.caption-area');
-            textarea.addEventListener('input', (e) => {
+            textarea.addEventListener('blur', (e) => {
+                // alert('blur event fired')
+
                 this.updateCaption(image._id, e.target.value);
                 card.querySelector('.char-count span').textContent = e.target.value.length;
                 this.updateAllTagsWithCounts();
                 this.renderSidePanel();
+            });
+
+            
+            // add ctrl + Enter key event to blur() and updateAllUIElements
+            textarea.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && e.ctrlKey){
+                    console.log('ctrl + Enter key')
+                    this.UpdateAllUIElements(e)
+                    e.target.blur()
+                }
+            })
+            textarea.addEventListener('click', (e) => {
+                e.preventDefault();
+                
+                setTimeout(() => {
+                    e.target.focus();
+                }, 1);
             });
 
             card.querySelector('.delete-btn').addEventListener('click', () => {
@@ -877,6 +905,20 @@ class ImageCaptioner {
         } else if (deletePanel) {
             deletePanel.remove();
         }
+    }
+    UpdateAllUIElements(e){
+        const cards = document.querySelectorAll('.image-card')
+        
+        // update char count
+        Array.from(this.images).map((image, i)=>{
+            const card = cards[i]
+            const caption = card.querySelector('textarea').value
+
+            this.updateCaption(image._id, caption);
+            card.querySelector('.char-count span').textContent = e.target.value.length;
+        })
+        this.updateAllTagsWithCounts();
+        this.renderSidePanel();
     }
 }
 
