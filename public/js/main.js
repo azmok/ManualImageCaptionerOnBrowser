@@ -117,7 +117,7 @@ class ImageCaptioner {
     }
 
     async updateCaption(imageId, caption) {
-        
+
         const image = this.images.find(img => img._id === imageId);
         if (image && image.caption === caption) {
             // FIX: If the caption is the same, exit early to prevent unnecessary server call 
@@ -728,7 +728,15 @@ class ImageCaptioner {
     }
 
     focusMatch(textToHighlight) {
-        document.querySelectorAll('.image-card').forEach(card => card.classList.remove('highlighted'));
+        // FIX 1: Remove highlighting and navigation controls from ALL cards before proceeding.
+        document.querySelectorAll('.image-card').forEach(card => {
+            card.classList.remove('highlighted');
+            const oldNav = card.querySelector('.nav-controls');
+            if (oldNav) {
+                // Ensure old navigation buttons and their stale event listeners are removed.
+                oldNav.remove();
+            }
+        });
 
         const { img } = this.currentMatches[this.currentMatchIndex];
         const card = document.querySelector(`[data-image-id="${img._id}"]`);
@@ -749,21 +757,20 @@ class ImageCaptioner {
                 }
             }
 
-            let nav = card.querySelector('.nav-controls');
-            if (!nav) {
-                nav = document.createElement('div');
-                nav.className = 'nav-controls';
-                nav.innerHTML = `
-                    <button class="nav-btn" data-action="prev">▲</button>
-                    <span class="nav-info">${this.currentMatchIndex + 1} / ${this.currentMatches.length}</span>
-                    <button class="nav-btn" data-action="next">▼</button>
-                `;
-                card.appendChild(nav);
-                nav.querySelector('[data-action="prev"]').addEventListener('click', () => this.prevMatch(textToHighlight));
-                nav.querySelector('[data-action="next"]').addEventListener('click', () => this.nextMatch(textToHighlight));
-            } else {
-                nav.querySelector('.nav-info').textContent = `${this.currentMatchIndex + 1} / ${this.currentMatches.length}`;
-            }
+            // FIX 2: Recreate the navigation controls every time for the focused card.
+            // This ensures fresh listeners with the current tag context are attached.
+            const nav = document.createElement('div');
+            nav.className = 'nav-controls';
+            nav.innerHTML = `
+                <button class="nav-btn" data-action="prev">▲</button>
+                <span class="nav-info">${this.currentMatchIndex + 1} / ${this.currentMatches.length}</span>
+                <button class="nav-btn" data-action="next">▼</button>
+            `;
+            card.appendChild(nav);
+            
+            // Attach fresh listeners to the newly created buttons
+            nav.querySelector('[data-action="prev"]').addEventListener('click', () => this.prevMatch(textToHighlight));
+            nav.querySelector('[data-action="next"]').addEventListener('click', () => this.nextMatch(textToHighlight));
         }
     }
 
