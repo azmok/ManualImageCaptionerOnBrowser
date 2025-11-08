@@ -11,7 +11,11 @@
   "version": "1.0.0",
   "main": "main.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "server": "nodemon server.js",
+    "browser-sync": "browser-sync start --config bs-config.js",
+    "dev": "npm run server & npm run browser-sync",
+    "start": "NODE_ENV=production node server.js"
   },
   "repository": {
     "type": "git",
@@ -24,5 +28,10 @@
     "url": "https://github.com/azmok/ManualImageCaptionerOnBrowser/issues"
   },
   "homepage": "https://github.com/azmok/ManualImageCaptionerOnBrowser#readme",
-  "description": ""
+  "description": "",
+  "devDependencies": {
+    "browser-sync": "^3.0.4",
+    "connect-livereload": "^0.6.1",
+    "livereload": "^0.10.3"
+  }
 }

@@ -209,7 +209,7 @@ body {
 
 .caption-area {
   width: 100%;
-  min-height: 150px;
+  min-height: 260px;
   padding: 0.5rem;
   border: 2px solid #e2e8f0;
   border-radius: 12px;
@@ -223,7 +223,7 @@ body {
   line-height: 1.1;
   letter-spacing: 1.1;
 }
-
+s
 .caption-area:focus {
   outline: none;
   border-color: #667eea;
@@ -591,9 +591,6 @@ body {
   .caption-area {
     padding: 0.35rem; 
   }
-  .caption-area {
-    padding: 0.35rem; 
-  }
   #sidePanel{
     width: 260px;
   }
@@ -850,4 +847,53 @@ h4{
 }
 #SettingsPanel.open{
   transform: translateX(0px);
+}
+
+/* Lightbox Styles */
+.lightbox {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.9);
+  z-index: 10000;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+.lightbox.active {
+  display: flex;
+}
+
+.lightbox-image {
+  max-width: 98%;
+  max-height: 98%;
+  object-fit: contain;
+  box-shadow: 0 0 50px rgba(0, 0, 0, 0.8);
+  cursor: default;
+  animation: zoomIn 0.2s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes zoomIn {
+  from {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
 }

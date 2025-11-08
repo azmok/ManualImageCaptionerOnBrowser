@@ -116,14 +116,16 @@ class ImageCaptioner {
         }
     }
 
-    async updateCaption(imageId, caption) {
-
+    async updateCaption(imageId, caption, options = {}) {
+        const { reload = true } = options;
         const image = this.images.find(img => img._id === imageId);
         if (image && image.caption === caption) {
             // FIX: If the caption is the same, exit early to prevent unnecessary server call 
             // and the destructive loadImages/updateUI/renderGallery cycle.
             return;
         }
+
+        const focusState = reload ? this.captureFocusState() : null;
 
         try {
             const response = await fetch(`/api/images/${imageId}`, {
@@ -134,11 +136,90 @@ class ImageCaptioner {
             if (!response.ok) {
                 throw new Error('Failed to update caption.');
             }
-            await this.loadImages();
+
+            if (image) {
+                image.caption = caption;
+            }
+
+            if (reload) {
+                await this.loadImages();
+            }
         } catch (error) {
             console.error("Error updating caption:", error);
             this.showNotification('Failed to update caption.', 'error');
+        } finally {
+            if (reload) {
+                this.restoreFocusState(focusState);
+            }
         }
+    }
+
+    captureFocusState() {
+        const activeElement = document.activeElement;
+        if (!activeElement || activeElement === document.body) {
+            return null;
+        }
+
+        if (activeElement.classList && activeElement.classList.contains('caption-area')) {
+            const card = activeElement.closest('[data-image-id]');
+            if (card) {
+                return {
+                    type: 'caption-area',
+                    imageId: card.getAttribute('data-image-id'),
+                    selectionStart: activeElement.selectionStart,
+                    selectionEnd: activeElement.selectionEnd,
+                };
+            }
+        }
+
+        if (activeElement.id) {
+            return {
+                type: 'element-id',
+                id: activeElement.id,
+            };
+        }
+
+        return null;
+    }
+
+    restoreFocusState(state) {
+        if (!state) {
+            return;
+        }
+
+        let element = null;
+        if (state.type === 'caption-area' && state.imageId) {
+            const escapedId = this.escapeAttributeValue(String(state.imageId));
+            element = document.querySelector(`[data-image-id="${escapedId}"] .caption-area`);
+        } else if (state.type === 'element-id' && state.id) {
+            element = document.getElementById(state.id);
+        }
+
+        if (element && typeof element.focus === 'function') {
+            element.focus();
+
+            const { selectionStart, selectionEnd } = state;
+            if (
+                typeof element.setSelectionRange === 'function' &&
+                selectionStart !== null &&
+                selectionStart !== undefined &&
+                selectionEnd !== null &&
+                selectionEnd !== undefined
+            ) {
+                try {
+                    element.setSelectionRange(selectionStart, selectionEnd);
+                } catch (error) {
+                    // Some elements may not support selection ranges; safely ignore.
+                }
+            }
+        }
+    }
+
+    escapeAttributeValue(value) {
+        if (window.CSS && typeof window.CSS.escape === 'function') {
+            return window.CSS.escape(value);
+        }
+        return value.replace(/["\\]/g, '\$&');
     }
 
     async deleteImage(imageId) {
@@ -192,7 +273,12 @@ class ImageCaptioner {
 
         for (const image of this.images) {
             try {
-                const response = await fetch(image.filepath);
+                // Fetch the actual image data from the API
+                const response = await fetch(`/api/images/${image._id}`);
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch image: ${response.statusText}`);
+                }
+
                 const blob = await response.blob();
                 zip.file(image.filename, blob);
 
@@ -290,10 +376,11 @@ class ImageCaptioner {
 
             const textarea = card.querySelector('.caption-area');
             textarea.addEventListener('blur', (e) => {
-                // alert('blur event fired')
-
-                this.updateCaption(image._id, e.target.value);
+                // Update caption without reloading the entire UI
+                this.updateCaption(image._id, e.target.value, { reload: false });
                 card.querySelector('.char-count span').textContent = e.target.value.length;
+
+                // Update tags and side panel only, without re-rendering gallery
                 this.updateAllTagsWithCounts();
                 this.renderSidePanel();
             });
@@ -319,6 +406,14 @@ class ImageCaptioner {
                 this.deleteImage(image._id);
             });
 
+            // Add lightbox functionality to image
+            const imgElement = card.querySelector('.image-container img');
+            imgElement.style.cursor = 'pointer';
+            imgElement.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.openLightbox(`/api/images/${image._id}`);
+            });
+
             const imageTagsContainer = card.querySelector('.image-tags-container');
             this.createTagButtonsForImage(image, maxCount).forEach(button => {
                 imageTagsContainer.appendChild(button);
@@ -326,6 +421,19 @@ class ImageCaptioner {
 
             gallery.appendChild(card);
         });
+    }
+
+    openLightbox(imageSrc) {
+        const lightbox = document.getElementById('lightbox');
+        const lightboxImage = document.getElementById('lightboxImage');
+
+        lightboxImage.src = imageSrc;
+        lightbox.classList.add('active');
+    }
+
+    closeLightbox() {
+        const lightbox = document.getElementById('lightbox');
+        lightbox.classList.remove('active');
     }
 
     createTagButtonsForImage(image, maxCount) {
@@ -964,5 +1072,27 @@ document.addEventListener('mouseup', () => {
 let captioner;
 document.addEventListener('DOMContentLoaded', () => {
     captioner = new ImageCaptioner();
-    
+
+    // Lightbox close functionality
+    const lightbox = document.getElementById('lightbox');
+    const lightboxImage = document.getElementById('lightboxImage');
+
+    // Close lightbox when clicking on the background (not the image)
+    lightbox.addEventListener('click', (e) => {
+        if (e.target === lightbox) {
+            captioner.closeLightbox();
+        }
+    });
+
+    // Prevent closing when clicking on the image itself
+    lightboxImage.addEventListener('click', (e) => {
+        e.stopPropagation();
+    });
+
+    // Close lightbox with Escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            captioner.closeLightbox();
+        }
+    });
 });
