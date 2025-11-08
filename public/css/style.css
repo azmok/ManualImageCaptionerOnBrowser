@@ -195,18 +195,6 @@ body {
   transform: scale(1.05);
 }
 
-.image-info {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  background: rgba(0, 0, 0, 0.7);
-  color: #adadad;
-  padding: 5px 10px;
-  border-radius: 8px;
-  font-size: 0.8em;
-  font-weight: 600;
-}
-
 .caption-area {
   width: 100%;
   min-height: 260px;

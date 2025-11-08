@@ -357,7 +357,6 @@ class ImageCaptioner {
             card.innerHTML = `
                 <div class="image-container">
                     <img src="/api/images/${image._id}" alt="${image.filename}" loading="lazy">
-                    <div class="image-info">${this.formatFileSize(image.size)}</div>
                 </div>
                 <textarea
                     class="caption-area"
@@ -461,14 +460,6 @@ class ImageCaptioner {
         document.getElementById('imageCount').textContent = `${totalImages} images`;
         document.getElementById('captionedCount').textContent = `${captionedImages} captioned`;
         document.getElementById('progressFill').style.width = `${progress}%`;
-    }
-
-    formatFileSize(bytes) {
-        if (bytes === 0) return '0 Bytes';
-        const k = 1024;
-        const sizes = ['Bytes', 'KB', 'MB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 
     showNotification(message, type) {
